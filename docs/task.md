@@ -39,3 +39,9 @@ we are implementing a website to recite anything.
 - list input and output for each api.
 - modify ./docs/system_design.md directly.
 - commit and push all the changes.
+
+# task 7
+
+- how will you choose your technologies? compare different technologies and make your decisions.
+- output your result to ./docs/system_design.md. modify ./docs/system_design.md directly.
+- commit and push all the changes.

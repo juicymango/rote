@@ -114,3 +114,35 @@ When a user submits a recitation result (`POST /api/recite/:content_id`), the ba
 - **Password Hashing**: Hash user passwords using a strong hashing algorithm (e.g., bcrypt).
 - **Input Validation**: Validate all user input to prevent SQL injection, XSS, and other attacks.
 - **HTTPS**: Use HTTPS to encrypt all communication between the client and the server.
+
+## 6. Technology Choices
+
+### Frontend
+
+| Technology | Pros | Cons |
+|---|---|---|
+| React | Large ecosystem, component-based, great for single-page applications. | Can be complex to set up, requires knowledge of JSX. |
+| Vue.js | Easy to learn, good documentation, flexible. | Smaller ecosystem than React. |
+| Angular | Full-featured framework, good for large applications, backed by Google. | Steep learning curve, can be overkill for small projects. |
+
+**Decision**: **React**. Its large community, rich ecosystem, and component-based architecture make it a good choice for building a modern, interactive user interface.
+
+### Backend
+
+| Technology | Pros | Cons |
+|---|---|---|
+| Node.js (with Express) | Fast and scalable, uses JavaScript (same language as the frontend), large number of packages available through npm. | Can be inefficient for CPU-intensive tasks. |
+| Python (with Django/Flask) | Easy to learn, great for data-intensive applications, large number of libraries available. | Can be slower than Node.js or Go. |
+| Go (with Gin) | Excellent performance, great for building concurrent applications, statically typed. | Smaller ecosystem than Node.js or Python. |
+
+**Decision**: **Go with Gin**. Since the project is already in a Go environment, it makes sense to use Go for the backend. Go is also highly performant and well-suited for building scalable APIs. Gin is a lightweight and fast framework for building web applications in Go.
+
+### Database
+
+| Technology | Pros | Cons |
+|---|---|---|
+| PostgreSQL | Feature-rich, highly extensible, strong support for JSON. | Can be more complex to manage than MySQL. |
+| MySQL | Easy to use, good performance, widely used. | Less feature-rich than PostgreSQL. |
+| SQLite | Lightweight, serverless, easy to set up. | Not suitable for large-scale or concurrent applications. |
+
+**Decision**: **PostgreSQL**. Its robustness, feature set (including strong JSON support), and scalability make it a good choice for this application. It can handle the relational data model well and provides a solid foundation for future growth.

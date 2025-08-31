@@ -33,3 +33,9 @@ we are implementing a website to recite anything.
 - also include other system design contents.
 - read knowledge in ./docs/memory_theory.md. we will use sm2 algorithm in it.
 - output your result in ./docs/system_design.md.
+
+# task 6
+
+- list input and output for each api.
+- modify ./docs/system_design.md directly.
+- commit and push all the changes.

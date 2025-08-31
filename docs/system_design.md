@@ -52,29 +52,41 @@ The system will be based on a classic client-server architecture.
 ### User Management
 
 - `POST /api/users/register`: Register a new user.
+    - **Input**: `{ "username": "test", "email": "test@example.com", "password": "password" }`
+    - **Output**: `{ "id": "uuid", "username": "test", "email": "test@example.com" }`
 - `POST /api/users/login`: Log in a user and get a JWT token.
+    - **Input**: `{ "email": "test@example.com", "password": "password" }`
+    - **Output**: `{ "token": "jwt_token" }`
 - `GET /api/users/me`: Get the current user's profile.
+    - **Input**: None (Authorization header with JWT token)
+    - **Output**: `{ "id": "uuid", "username": "test", "email": "test@example.com" }`
 
 ### Content Management
 
 - `POST /api/content`: Create a new piece of content to recite.
+    - **Input**: `{ "title": "My first content", "body": "This is the content to be recited." }`
+    - **Output**: `{ "id": "uuid", "title": "My first content", "body": "This is the content to be recited." }`
 - `GET /api/content`: Get a list of all content for the current user.
+    - **Input**: None
+    - **Output**: `[{ "id": "uuid", "title": "My first content" }, ...]`
 - `GET /api/content/:id`: Get a specific piece of content.
+    - **Input**: None
+    - **Output**: `{ "id": "uuid", "title": "My first content", "body": "This is the content to be recited." }`
 - `PUT /api/content/:id`: Update a piece of content.
+    - **Input**: `{ "title": "Updated title", "body": "Updated content." }`
+    - **Output**: `{ "id": "uuid", "title": "Updated title", "body": "Updated content." }`
 - `DELETE /api/content/:id`: Delete a piece of content.
+    - **Input**: None
+    - **Output**: `204 No Content`
 
 ### Recitation
 
 - `GET /api/recite/today`: Get a list of all content scheduled for recitation today.
+    - **Input**: None
+    - **Output**: `[{ "id": "uuid", "title": "Content to recite today" }, ...]`
 - `POST /api/recite/:content_id`: Submit the result of a recitation for a specific piece of content.
-
-The request body for `POST /api/recite/:content_id` would look like this:
-
-```json
-{
-  "quality": 4
-}
-```
+    - **Input**: `{ "quality": 4 }`
+    - **Output**: `{ "message": "Recitation result submitted successfully." }`
 
 ## 4. Recitation Scheduling
 

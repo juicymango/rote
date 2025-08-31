@@ -68,3 +68,10 @@ we are implementing a website to recite anything.
 - read all files in ./docs for the context.
 - modify ./docs/system_design.md and ./docs/code-structure.md, and insert your answer in proper places.
 - commit and push all the changes.
+
+# task 11
+
+- how will you automatically this system?
+- read all files in ./docs for the context.
+- output the result to ./docs/test.md.
+- commit and push all the changes.

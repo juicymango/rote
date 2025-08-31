@@ -24,3 +24,12 @@ we are implementing a website to recite anything.
 - the strategies may vary based on different results for reciting this content today.
 - do more research before answering.
 - append your result to ./docs/ebbinghaus.md.
+
+# task 5
+
+- system design the rote system for reciting anything.
+- list functional apis.
+- the system should support multi users.
+- also include other system design contents.
+- read knowledge in ./docs/memory_theory.md. we will use sm2 algorithm in it.
+- output your result in ./docs/system_design.md.

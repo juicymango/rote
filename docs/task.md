@@ -75,3 +75,10 @@ we are implementing a website to recite anything.
 - read all files in ./docs for the context.
 - output the result to ./docs/test.md.
 - commit and push all the changes.
+
+# task 12
+
+- read all files in ./docs for the context.
+- generate your plan to implement the system.
+- output the plan to ./docs/plan.md.
+- commit and push all the changes.

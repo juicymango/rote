@@ -51,3 +51,13 @@ we are implementing a website to recite anything.
 - is next.js a better choice? elaborate about it.
 - output your result to ./docs/system_design.md. modify ./docs/system_design.md directly.
 - commit and push all the changes.
+
+# task 9
+
+- now we decide to use next.js and PostgreSQL.
+- read ./docs/system_design.md.
+- search for informations about latest versions of next.js and PostgreSQL.
+- give the high level design about how you will implement the website.
+- list high level functions and the hierarchy.
+- output to ./docs/code_structure.md.
+- commit and push all the changes.

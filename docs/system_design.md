@@ -146,3 +146,37 @@ When a user submits a recitation result (`POST /api/recite/:content_id`), the ba
 | SQLite | Lightweight, serverless, easy to set up. | Not suitable for large-scale or concurrent applications. |
 
 **Decision**: **PostgreSQL**. Its robustness, feature set (including strong JSON support), and scalability make it a good choice for this application. It can handle the relational data model well and provides a solid foundation for future growth.
+
+## 7. Is Next.js a better choice?
+
+Next.js is a popular React framework that provides a number of features out of the box, including server-side rendering (SSR), static site generation (SSG), and API routes. It is a good choice for building modern, performant web applications.
+
+### Comparison with the current technology stack
+
+| Aspect | Current Stack (React + Go/Gin) | Next.js |
+|---|---|---|
+| **Architecture** | Separate frontend and backend | Integrated frontend and backend |
+| **Rendering** | Client-side rendering (CSR) | Server-side rendering (SSR) or static site generation (SSG) |
+| **API** | Separate REST API server | Integrated API routes |
+| **Development Experience** | Requires managing two separate codebases and development environments | Simplified development experience with a single codebase |
+| **Performance** | Can be slower on initial page load due to CSR | Faster initial page load and better SEO with SSR/SSG |
+| **Scalability** | Can be scaled independently | Can be scaled as a whole |
+
+### Pros of using Next.js
+
+- **Improved Performance**: SSR and SSG can lead to faster initial page loads and better SEO.
+- **Simplified Development**: A single codebase for both the frontend and backend can simplify development and reduce the amount of boilerplate code.
+- **Built-in Features**: Next.js comes with a number of built-in features, such as routing, image optimization, and internationalization, which can save development time.
+- **Vercel Integration**: Next.js is developed by Vercel, which provides a seamless deployment experience.
+
+### Cons of using Next.js
+
+- **Opinionated**: Next.js is an opinionated framework, which may not be suitable for all projects.
+- **Learning Curve**: While Next.js is based on React, it has its own set of conventions and APIs that need to be learned.
+- **Vendor Lock-in**: While Next.js is open-source, it is tightly integrated with the Vercel platform, which could lead to vendor lock-in.
+
+### Conclusion
+
+For this project, **Next.js is a better choice**. The benefits of improved performance, simplified development, and built-in features outweigh the cons. While the current stack of React and Go/Gin is a solid choice, Next.js provides a more integrated and streamlined development experience, which is especially beneficial for a small team or a solo developer. The ability to have a single codebase for both the frontend and backend is a significant advantage.
+
+Therefore, I recommend using **Next.js with PostgreSQL** for this project.

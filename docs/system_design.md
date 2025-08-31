@@ -180,3 +180,29 @@ Next.js is a popular React framework that provides a number of features out of t
 For this project, **Next.js is a better choice**. The benefits of improved performance, simplified development, and built-in features outweigh the cons. While the current stack of React and Go/Gin is a solid choice, Next.js provides a more integrated and streamlined development experience, which is especially beneficial for a small team or a solo developer. The ability to have a single codebase for both the frontend and backend is a significant advantage.
 
 Therefore, I recommend using **Next.js with PostgreSQL** for this project.
+
+## 8. Monitoring
+
+Monitoring is crucial for ensuring the reliability, performance, and availability of the Rote application. Our monitoring strategy will focus on three key areas: logging, metrics, and alerting.
+
+### Logging
+
+- **What to log**: We will log all API requests and responses, as well as any errors that occur in the application. We will also log key events, such as user registrations and content creation.
+- **Where to store logs**: We will use a cloud-based logging service, such as Datadog, Logz.io, or the ELK stack (Elasticsearch, Logstash, and Kibana). This will allow us to centralize our logs, search them easily, and create dashboards and alerts based on log data.
+
+### Metrics
+
+- **What to collect**: We will collect a variety of metrics to monitor the health and performance of the application, including:
+    - **Application-level metrics**: Request latency, error rates, and throughput for each API endpoint.
+    - **Database metrics**: CPU utilization, memory usage, and query latency for the PostgreSQL database.
+    - **System-level metrics**: CPU utilization, memory usage, and disk space for the application servers.
+- **How to visualize metrics**: We will use a monitoring service, such as Datadog, Grafana, or Prometheus, to visualize our metrics in dashboards. This will allow us to easily identify trends and anomalies.
+
+### Alerting
+
+- **When to trigger alerts**: We will set up alerts to notify us of any critical issues, such as:
+    - A sudden spike in error rates.
+    - High request latency.
+    - High CPU or memory utilization.
+    - Low disk space.
+- **Who to notify**: Alerts will be sent to the development team via email, Slack, or a paging service like PagerDuty.

@@ -61,3 +61,10 @@ we are implementing a website to recite anything.
 - list high level functions and the hierarchy.
 - output to ./docs/code_structure.md.
 - commit and push all the changes.
+
+# task 10
+
+- how do you monitor this system?
+- read all files in ./docs for the context.
+- modify ./docs/system_design.md and ./docs/code-structure.md, and insert your answer in proper places.
+- commit and push all the changes.

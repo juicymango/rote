@@ -82,3 +82,12 @@ we are implementing a website to recite anything.
 - generate your plan to implement the system.
 - output the plan to ./docs/plan.md.
 - commit and push all the changes.
+
+# task 13
+
+- read all files in ./docs for the context.
+- finish tasks in ./docs/plan.md step by step.
+- well document your code.
+- always code in the way with best runtime efficiency.
+- always log important results.
+- commit and push all the changes.

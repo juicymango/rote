@@ -1,0 +1,45 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  username      String    @unique
+  email         String    @unique
+  password_hash String
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+  content       Content[]
+  progress      RecitationProgress[]
+}
+
+model Content {
+  id         String    @id @default(cuid())
+  user       User      @relation(fields: [userId], references: [id])
+  userId     String
+  title      String
+  body       String
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  progress   RecitationProgress[]
+}
+
+model RecitationProgress {
+  id              String   @id @default(cuid())
+  user            User     @relation(fields: [userId], references: [id])
+  userId          String
+  content         Content  @relation(fields: [contentId], references: [id])
+  contentId       String
+  n               Int
+  ef              Float
+  i               Int
+  next_recite_at  DateTime
+  last_recited_at DateTime
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+}

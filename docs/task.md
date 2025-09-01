@@ -105,3 +105,11 @@ we are implementing a website to recite anything.
 - well comment the test code.
 - run the tests in ./docs/test.md ## 5. API Testing. fix bugs if there are some.
 - commit and push all the changes.
+
+# task 16
+
+- why did you mark Test Cases in ./docs/test.md ## 5. API Testing Not implemented? implement them.
+- update the test code path in ./docs/test.md.
+- well comment the test code.
+- run the tests in ./docs/test.md ## 5. API Testing. fix bugs if tests are not passed.
+- commit and push all the changes.

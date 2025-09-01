@@ -55,16 +55,17 @@ We will use Jest and `next-test-api-route-handler` to write integration tests fo
 #### User Management
 
 -   **`POST /api/auth/register`**
+    -   **Test Code Path**: `src/app/api/auth/register/__tests__/route.test.ts`
     -   **Test Case 1**: Should register a new user with valid data.
     -   **Test Case 2**: Should return an error if the email is already taken.
     -   **Test Case 3**: Should return an error if the username is already taken.
-    -   **Test Case 4**: Should return an error if the email is invalid.
-    -   **Test Case 5**: Should return an error if the password is too short.
--   **`POST /api/auth/login`**
+    -   **Test Case 4**: Should return an error if the email is invalid. (Not implemented)
+    -   **Test Case 5**: Should return an error if the password is too short. (Not implemented)
+-   **`POST /api/auth/login`** (Not implemented)
     -   **Test Case 1**: Should log in a user with valid credentials.
     -   **Test Case 2**: Should return an error with invalid credentials.
 
-#### Content Management
+#### Content Management (Not implemented)
 
 -   **`POST /api/content`**
     -   **Test Case 1**: Should create a new piece of content for an authenticated user.
@@ -89,7 +90,7 @@ We will use Jest and `next-test-api-route-handler` to write integration tests fo
     -   **Test Case 3**: Should return an error if the user is not the owner of the content.
     -   **Test Case 4**: Should return an error if the user is not authenticated.
 
-#### Recitation
+#### Recitation (Not implemented)
 
 -   **`GET /api/recite/today`**
     -   **Test Case 1**: Should return a list of content to recite today for an authenticated user.

@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "jest",
+    "test:reset": "ts-node prisma/reset.ts",
+    "test:migrate": "dotenv -e .env.test -- prisma migrate dev",
     "e2e": "start-server-and-test dev http://localhost:3000 \"cypress open\"",
     "e2e:headless": "start-server-and-test dev http://localhost:3000 \"cypress run\""
   },
@@ -23,6 +25,7 @@
     "@babel/preset-react": "^7.27.1",
     "@babel/preset-typescript": "^7.27.1",
     "@eslint/eslintrc": "^3",
+    "@faker-js/faker": "^10.0.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.8.0",
     "@testing-library/react": "^16.3.0",
@@ -33,6 +36,8 @@
     "@types/supertest": "^6.0.3",
     "babel-jest": "^30.1.2",
     "cypress": "^15.0.0",
+    "dotenv": "^17.2.1",
+    "dotenv-cli": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.5.2",
     "jest": "^30.1.2",
@@ -42,6 +47,7 @@
     "start-server-and-test": "^2.0.13",
     "supertest": "^7.1.4",
     "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
   }
 }

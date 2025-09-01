@@ -97,3 +97,11 @@ we are implementing a website to recite anything.
 - how do you ensure the apis work well? what are the test cases? how to test them?
 - update ./docs/test.md.
 - commit and push all the changes.
+
+# task 15
+
+- are the Test Cases in ./docs/test.md ## 5. API Testing implemented? if no, implement them.
+- update the test code path in ./docs/test.md.
+- well comment the test code.
+- run the tests in ./docs/test.md ## 5. API Testing. fix bugs if there are some.
+- commit and push all the changes.

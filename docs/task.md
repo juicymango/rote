@@ -113,3 +113,10 @@ we are implementing a website to recite anything.
 - well comment the test code.
 - run the tests in ./docs/test.md ## 5. API Testing. fix bugs if tests are not passed.
 - commit and push all the changes.
+
+# task 17
+
+- your description in ### How to Test in ./docs/test.md is too high level.
+- rewrite it by a detail step by step operation guide, inclulding the exact commands to run.
+- update ./docs/test.md.
+- commit and push all the changes.

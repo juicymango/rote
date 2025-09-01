@@ -112,10 +112,49 @@ We will use Jest and `next-test-api-route-handler` to write integration tests fo
 
 ### How to Test
 
-We will use a separate test database for running the API tests. We will use Prisma to seed the test database with data before each test run. We will also use a library like `faker-js` to generate fake data for our tests.
+This guide provides a step-by-step process for running the API tests locally.
 
-For each test case, we will:
-1.  Seed the database with the required data.
-2.  Make a request to the API endpoint using `next-test-api-route-handler`.
-3.  Assert that the response is correct.
-4.  Clean up the database after the test run.
+#### 1. Prerequisites
+
+-   You have a local PostgreSQL instance running.
+-   You have created a separate database for testing (e.g., `rote_test`).
+
+#### 2. Setup
+
+1.  **Install dependencies**:
+    ```bash
+    npm install
+    ```
+
+2.  **Create a `.env.test` file**:
+    Create a `.env.test` file in the root of the project and add the following line, replacing the credentials and database name with your own:
+    ```
+    DATABASE_URL="postgresql://user:password@localhost:5432/rote_test"
+    ```
+
+3.  **Apply database migrations**:
+    Run the following command to apply the database migrations to the test database:
+    ```bash
+    npm run test:migrate
+    ```
+
+#### 3. Running Tests
+
+1.  **Run all tests**:
+    Run the following command to run all the API tests:
+    ```bash
+    npm test
+    ```
+
+2.  **Run a specific test file**:
+    To run a specific test file, you can use the following command:
+    ```bash
+    npm test -- src/app/api/auth/register/__tests__/route.test.ts
+    ```
+
+#### 4. Resetting the Test Database
+
+If you want to reset the test database, you can run the following command:
+```bash
+npm run test:reset
+```

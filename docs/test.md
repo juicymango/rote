@@ -45,3 +45,69 @@ We will set up a CI/CD pipeline to automate the testing process.
     8.  Deploy the application to production (on merge to `main`).
 
 By implementing this automated testing strategy, we can ensure that the Rote application is always in a deployable state and that we can release new features with confidence.
+
+## 5. API Testing
+
+We will use Jest and `next-test-api-route-handler` to write integration tests for our API routes. We will also use a separate test database to avoid polluting the development database.
+
+### Test Cases
+
+#### User Management
+
+-   **`POST /api/auth/register`**
+    -   **Test Case 1**: Should register a new user with valid data.
+    -   **Test Case 2**: Should return an error if the email is already taken.
+    -   **Test Case 3**: Should return an error if the username is already taken.
+    -   **Test Case 4**: Should return an error if the email is invalid.
+    -   **Test Case 5**: Should return an error if the password is too short.
+-   **`POST /api/auth/login`**
+    -   **Test Case 1**: Should log in a user with valid credentials.
+    -   **Test Case 2**: Should return an error with invalid credentials.
+
+#### Content Management
+
+-   **`POST /api/content`**
+    -   **Test Case 1**: Should create a new piece of content for an authenticated user.
+    -   **Test Case 2**: Should return an error if the user is not authenticated.
+-   **`GET /api/content`**
+    -   **Test Case 1**: Should return a list of content for an authenticated user.
+    -   **Test Case 2**: Should return an empty list if the user has no content.
+    -   **Test Case 3**: Should return an error if the user is not authenticated.
+-   **`GET /api/content/:id`**
+    -   **Test Case 1**: Should return a specific piece of content for an authenticated user.
+    -   **Test Case 2**: Should return an error if the content does not exist.
+    -   **Test Case 3**: Should return an error if the user is not the owner of the content.
+    -   **Test Case 4**: Should return an error if the user is not authenticated.
+-   **`PUT /api/content/:id`**
+    -   **Test Case 1**: Should update a specific piece of content for an authenticated user.
+    -   **Test Case 2**: Should return an error if the content does not exist.
+    -   **Test Case 3**: Should return an error if the user is not the owner of the content.
+    -   **Test Case 4**: Should return an error if the user is not authenticated.
+-   **`DELETE /api/content/:id`**
+    -   **Test Case 1**: Should delete a specific piece of content for an authenticated user.
+    -   **Test Case 2**: Should return an error if the content does not exist.
+    -   **Test Case 3**: Should return an error if the user is not the owner of the content.
+    -   **Test Case 4**: Should return an error if the user is not authenticated.
+
+#### Recitation
+
+-   **`GET /api/recite/today`**
+    -   **Test Case 1**: Should return a list of content to recite today for an authenticated user.
+    -   **Test Case 2**: Should return an empty list if there is no content to recite today.
+    -   **Test Case 3**: Should return an error if the user is not authenticated.
+-   **`POST /api/recite/:id`**
+    -   **Test Case 1**: Should submit the result of a recitation for an authenticated user.
+    -   **Test Case 2**: Should create a new recitation progress if it does not exist.
+    -   **Test Case 3**: Should update the recitation progress if it already exists.
+    -   **Test Case 4**: Should return an error if the content does not exist.
+    -   **Test Case 5**: Should return an error if the user is not authenticated.
+
+### How to Test
+
+We will use a separate test database for running the API tests. We will use Prisma to seed the test database with data before each test run. We will also use a library like `faker-js` to generate fake data for our tests.
+
+For each test case, we will:
+1.  Seed the database with the required data.
+2.  Make a request to the API endpoint using `next-test-api-route-handler`.
+3.  Assert that the response is correct.
+4.  Clean up the database after the test run.

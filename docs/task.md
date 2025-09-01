@@ -91,3 +91,9 @@ we are implementing a website to recite anything.
 - always code in the way with best runtime efficiency.
 - always log important results.
 - commit and push all the changes.
+
+# task 14
+
+- how do you ensure the apis work well? what are the test cases? how to test them?
+- update ./docs/test.md.
+- commit and push all the changes.

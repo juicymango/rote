@@ -134,3 +134,17 @@ we are implementing a website to recite anything.
     - make your plan to fix the issues. you can either fix it or refactor the whole project.
 - not to implement yet.
 - commit and push all the changes.
+
+# task 19
+
+- i choose Incremental Fixes in the Fix Plan in ./docs/plan.md.
+- complete all the features of this project.
+- design and complete all the unit tests for each feature.
+- update your plan in ./docs/plan.md.
+- finish your plan step by step.
+- make sure you pass all the unit tests.
+- ignore the e2e tests.
+- update ./docs/code_structure.md based on the current implementation.
+- update ./docs/system_design.md based on the current implementation.
+- update ./docs/test.md based on the current implementation.
+- commit and push all the changes.

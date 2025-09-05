@@ -1,18 +1,54 @@
 import { testApiHandler } from "next-test-api-route-handler";
 import { POST } from "../route";
 import { faker } from "@faker-js/faker";
-import prisma from "@/lib/prisma";
+
+// Mock Prisma client
+jest.mock("@/lib/prisma", () => ({
+  user: {
+    create: jest.fn(),
+    findUnique: jest.fn(),
+    findMany: jest.fn(),
+    deleteMany: jest.fn(),
+  },
+  content: {
+    create: jest.fn(),
+    findUnique: jest.fn(),
+    findMany: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+  },
+  recitationProgress: {
+    create: jest.fn(),
+    findMany: jest.fn(),
+    update: jest.fn(),
+  },
+  $transaction: jest.fn((fn) => fn()),
+}));
+
+const prisma = require("@/lib/prisma");
 
 describe("POST /api/auth/register", () => {
-  beforeEach(async () => {
-    // Reset the database before each test
-    await prisma.user.deleteMany({});
+  beforeEach(() => {
+    // Reset mocks before each test
+    jest.clearAllMocks();
   });
 
   it("should register a new user with valid data", async () => {
     const username = faker.internet.userName();
     const email = faker.internet.email();
     const password = faker.internet.password();
+    
+    // Mock the user creation
+    const mockUser = {
+      id: faker.string.uuid(),
+      username,
+      email,
+      password_hash: "hashed_password",
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
+    
+    prisma.user.create.mockResolvedValue(mockUser);
 
     await testApiHandler({
       handler: POST,
@@ -32,23 +68,23 @@ describe("POST /api/auth/register", () => {
         expect(json.username).toBe(username);
         expect(json.email).toBe(email);
 
-        // Check if the user is created in the database
-        const user = await prisma.user.findUnique({ where: { email } });
-        expect(user).not.toBeNull();
+        // Check if prisma.user.create was called
+        expect(prisma.user.create).toHaveBeenCalledWith({
+          data: {
+            username,
+            email,
+            password_hash: expect.any(String),
+          },
+        });
       },
     });
   });
 
   it("should return an error if the email is already taken", async () => {
     const email = faker.internet.email();
-    // Create a user with the same email
-    await prisma.user.create({
-      data: {
-        username: faker.internet.userName(),
-        email,
-        password_hash: faker.internet.password(),
-      },
-    });
+    
+    // Mock the user creation to throw an error (simulating unique constraint violation)
+    prisma.user.create.mockRejectedValue(new Error("Unique constraint violation"));
 
     await testApiHandler({
       handler: POST,
@@ -73,14 +109,9 @@ describe("POST /api/auth/register", () => {
 
   it("should return an error if the username is already taken", async () => {
     const username = faker.internet.userName();
-    // Create a user with the same username
-    await prisma.user.create({
-      data: {
-        username,
-        email: faker.internet.email(),
-        password_hash: faker.internet.password(),
-      },
-    });
+    
+    // Mock the user creation to throw an error (simulating unique constraint violation)
+    prisma.user.create.mockRejectedValue(new Error("Unique constraint violation"));
 
     await testApiHandler({
       handler: POST,

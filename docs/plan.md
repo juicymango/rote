@@ -129,3 +129,149 @@ If the codebase is too difficult to maintain or extend, consider a complete refa
 4. **Long-term**: Consider refactoring to improve architecture
 
 The estimated timeline for completing all fixes is **8-14 days** depending on the complexity of issues encountered.
+
+## Task 19: Incremental Fixes Implementation Plan
+
+### Detailed Implementation Steps
+
+Based on the chosen Incremental Fixes approach, here's the detailed step-by-step plan to complete all features and unit tests:
+
+#### Phase 1: Fix Test Environment Configuration (Priority: Critical)
+
+**1.1 Fix Jest Configuration for Next.js API Routes**
+- Update jest.config.js to properly handle Next.js API routes
+- Add proper polyfills for Request/Response objects
+- Configure test environment to work with Next.js 15
+
+**1.2 Set Up Test Database**
+- Ensure .env.test is properly configured
+- Verify test database migrations work correctly
+- Set up proper database reset scripts
+
+**1.3 Fix Mock Configuration**
+- Update NextAuth mocks to work with all test files
+- Ensure consistent mocking across all test files
+- Add proper type definitions for mocks
+
+**Success Criteria**: All existing tests pass without errors
+
+#### Phase 2: Complete Test Coverage for Existing APIs
+
+**2.1 Complete User Registration Tests**
+- Add email validation test cases
+- Add password length validation test cases
+- Add username validation test cases
+
+**2.2 Complete Content Management Tests**
+- Implement missing PUT /api/content/:id test cases
+- Implement missing DELETE /api/content/:id test cases
+- Add input validation tests for all content endpoints
+
+**2.3 Implement Recitation API Tests**
+- Create comprehensive tests for GET /api/recite/today
+- Create comprehensive tests for POST /api/recite/:id
+- Add SM-2 algorithm logic tests
+
+**Success Criteria**: 100% test coverage for all implemented APIs
+
+#### Phase 3: Implement Missing Login API
+
+**3.1 Create Login API Endpoint**
+- Implement POST /api/auth/login endpoint
+- Add proper error handling and validation
+- Integrate with NextAuth.js credentials provider
+
+**3.2 Implement Login Tests**
+- Create comprehensive test cases for login API
+- Test successful login scenarios
+- Test invalid credential scenarios
+- Test error handling
+
+**3.3 Update Authentication Flow**
+- Ensure proper session management
+- Add proper error responses
+- Integrate with existing authentication system
+
+**Success Criteria**: Login API fully functional with comprehensive tests
+
+#### Phase 4: Complete Recitation Functionality
+
+**4.1 Implement Recitation Progress Creation**
+- Complete POST /api/recite/:id functionality
+- Integrate SM-2 algorithm properly
+- Handle edge cases and error scenarios
+
+**4.2 Add Recitation Progress Updates**
+- Implement proper interval calculations
+- Handle different quality ratings (0-5)
+- Update database correctly
+
+**4.3 Implement Dashboard API**
+- Create GET /api/dashboard/progress endpoint
+- Add user statistics and progress tracking
+- Implement proper data aggregation
+
+**Success Criteria**: Complete recitation functionality with SM-2 algorithm
+
+#### Phase 5: Implement Missing UI Components
+
+**5.1 Create Basic UI Components**
+- Implement Navbar component with authentication state
+- Implement Footer component
+- Create basic layout components
+
+**5.2 Complete Dashboard UI**
+- Implement dashboard page with progress visualization
+- Add statistics display
+- Create user-friendly progress tracking
+
+**5.3 Enhance Existing Pages**
+- Improve content management UI
+- Add better form validation
+- Implement responsive design
+
+**Success Criteria**: Complete user interface with all planned features
+
+#### Phase 6: Final Testing and Documentation Updates
+
+**6.1 Run Comprehensive Tests**
+- Ensure all unit tests pass
+- Fix any remaining test issues
+- Verify test coverage
+
+**6.2 Update Documentation**
+- Update code_structure.md with final implementation
+- Update system_design.md with any changes
+- Update test.md with final test status
+
+**6.3 Final Verification**
+- Verify all APIs work correctly
+- Ensure proper error handling
+- Check database operations
+
+**Success Criteria**: Fully functional application with complete documentation
+
+### Implementation Timeline
+
+- **Phase 1**: 1-2 days
+- **Phase 2**: 2-3 days  
+- **Phase 3**: 1-2 days
+- **Phase 4**: 2-3 days
+- **Phase 5**: 3-4 days
+- **Phase 6**: 1-2 days
+
+**Total Estimated Time**: 10-16 days
+
+### Success Metrics
+
+1. **Test Coverage**: 100% API test coverage
+2. **Functionality**: All planned features implemented
+3. **Quality**: All tests pass, no critical bugs
+4. **Documentation**: Up-to-date and accurate
+
+### Next Steps
+
+1. Start with Phase 1: Fix test environment configuration
+2. Work through each phase sequentially
+3. Test thoroughly at each step
+4. Update documentation as changes are made

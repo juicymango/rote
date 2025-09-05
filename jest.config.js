@@ -1,11 +1,24 @@
 module.exports = {
-  testEnvironment: "jest-environment-jsdom",
+  testEnvironment: "node",
   setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
   moduleNameMapper: {
-    "^@/components/(.*)$": "<rootDir>/src/components/$1",
-    "^@/lib/(.*)$": "<rootDir>/src/lib/$1",
+    "^@/(.*)$": "<rootDir>/src/$1",
   },
   transform: {
-    "^.+\\.(ts|tsx)$": "babel-jest",
+    "^.+\\.(ts|tsx)$": ["ts-jest", {
+      tsconfig: "tsconfig.json",
+    }],
   },
+  testMatch: [
+    "**/__tests__/**/*.test.ts",
+  ],
+  collectCoverageFrom: [
+    "src/**/*.{ts,tsx}",
+    "!src/**/*.d.ts",
+    "!src/**/*.test.ts",
+  ],
+  transformIgnorePatterns: [
+    "node_modules/(?!(@next-auth|next-test-api-route-handler)/)",
+  ],
+  testTimeout: 10000,
 };

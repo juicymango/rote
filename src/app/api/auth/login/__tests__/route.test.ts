@@ -23,7 +23,10 @@ const mockNextResponse = {
 
 jest.mock("next/server", () => ({
   NextResponse: {
-    json: jest.fn(() => mockNextResponse),
+    json: jest.fn((data, options) => {
+      mockJson(data, options);
+      return { status: options?.status || 200 };
+    }),
   },
 }));
 
@@ -41,7 +44,7 @@ describe("POST /api/auth/login", () => {
     
     const mockUser = {
       id: faker.string.uuid(),
-      username: faker.internet.userName(),
+      username: faker.internet.username(),
       email,
       password_hash: "hashed_password",
       created_at: new Date(),
@@ -104,7 +107,7 @@ describe("POST /api/auth/login", () => {
     
     const mockUser = {
       id: faker.string.uuid(),
-      username: faker.internet.userName(),
+      username: faker.internet.username(),
       email,
       password_hash: "hashed_password",
       created_at: new Date(),

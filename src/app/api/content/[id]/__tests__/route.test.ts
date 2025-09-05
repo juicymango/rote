@@ -18,7 +18,7 @@ describe("GET /api/content/:id", () => {
   it("should return a specific piece of content for an authenticated user", async () => {
     const user = await prisma.user.create({
       data: {
-        username: faker.internet.userName(),
+        username: faker.internet.username(),
         email: faker.internet.email(),
         password_hash: faker.internet.password(),
       },
@@ -51,7 +51,7 @@ describe("GET /api/content/:id", () => {
   it("should return an error if the content does not exist", async () => {
     const user = await prisma.user.create({
       data: {
-        username: faker.internet.userName(),
+        username: faker.internet.username(),
         email: faker.internet.email(),
         password_hash: faker.internet.password(),
       },
@@ -74,7 +74,7 @@ describe("GET /api/content/:id", () => {
   it("should return an error if the user is not the owner of the content", async () => {
     const user1 = await prisma.user.create({
       data: {
-        username: faker.internet.userName(),
+        username: faker.internet.username(),
         email: faker.internet.email(),
         password_hash: faker.internet.password(),
       },
@@ -82,7 +82,7 @@ describe("GET /api/content/:id", () => {
 
     const user2 = await prisma.user.create({
       data: {
-        username: faker.internet.userName(),
+        username: faker.internet.username(),
         email: faker.internet.email(),
         password_hash: faker.internet.password(),
       },
@@ -136,7 +136,7 @@ describe("PUT /api/content/:id", () => {
   it("should update a specific piece of content for an authenticated user", async () => {
     const user = await prisma.user.create({
       data: {
-        username: faker.internet.userName(),
+        username: faker.internet.username(),
         email: faker.internet.email(),
         password_hash: faker.internet.password(),
       },
@@ -192,7 +192,7 @@ describe("DELETE /api/content/:id", () => {
   it("should delete a specific piece of content for an authenticated user", async () => {
     const user = await prisma.user.create({
       data: {
-        username: faker.internet.userName(),
+        username: faker.internet.username(),
         email: faker.internet.email(),
         password_hash: faker.internet.password(),
       },

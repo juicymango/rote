@@ -19,7 +19,7 @@ describe("POST /api/recite/:id", () => {
   it("should submit the result of a recitation for an authenticated user", async () => {
     const user = await prisma.user.create({
       data: {
-        username: faker.internet.userName(),
+        username: faker.internet.username(),
         email: faker.internet.email(),
         password_hash: faker.internet.password(),
       },
@@ -66,7 +66,7 @@ describe("POST /api/recite/:id", () => {
   it("should create a new recitation progress if it does not exist", async () => {
     const user = await prisma.user.create({
       data: {
-        username: faker.internet.userName(),
+        username: faker.internet.username(),
         email: faker.internet.email(),
         password_hash: faker.internet.password(),
       },
@@ -112,7 +112,7 @@ describe("POST /api/recite/:id", () => {
   it("should update the recitation progress if it already exists", async () => {
     const user = await prisma.user.create({
       data: {
-        username: faker.internet.userName(),
+        username: faker.internet.username(),
         email: faker.internet.email(),
         password_hash: faker.internet.password(),
       },

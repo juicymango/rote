@@ -19,7 +19,7 @@ describe("GET /api/recite/today", () => {
   it("should return a list of content to recite today for an authenticated user", async () => {
     const user = await prisma.user.create({
       data: {
-        username: faker.internet.userName(),
+        username: faker.internet.username(),
         email: faker.internet.email(),
         password_hash: faker.internet.password(),
       },
@@ -63,7 +63,7 @@ describe("GET /api/recite/today", () => {
   it("should return an empty list if there is no content to recite today", async () => {
     const user = await prisma.user.create({
       data: {
-        username: faker.internet.userName(),
+        username: faker.internet.username(),
         email: faker.internet.email(),
         password_hash: faker.internet.password(),
       },

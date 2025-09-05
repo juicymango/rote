@@ -34,7 +34,7 @@ describe("POST /api/auth/register", () => {
   });
 
   it("should register a new user with valid data", async () => {
-    const username = faker.internet.userName();
+    const username = faker.internet.username();
     const email = faker.internet.email();
     const password = faker.internet.password();
     
@@ -51,7 +51,7 @@ describe("POST /api/auth/register", () => {
     prisma.user.create.mockResolvedValue(mockUser);
 
     await testApiHandler({
-      handler: POST,
+      appHandler: POST,
       test: async ({ fetch }) => {
         const res = await fetch({
           method: "POST",
@@ -87,7 +87,7 @@ describe("POST /api/auth/register", () => {
     prisma.user.create.mockRejectedValue(new Error("Unique constraint violation"));
 
     await testApiHandler({
-      handler: POST,
+      appHandler: POST,
       test: async ({ fetch }) => {
         const res = await fetch({
           method: "POST",
@@ -95,7 +95,7 @@ describe("POST /api/auth/register", () => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            username: faker.internet.userName(),
+            username: faker.internet.username(),
             email,
             password: faker.internet.password(),
           }),
@@ -108,13 +108,13 @@ describe("POST /api/auth/register", () => {
   });
 
   it("should return an error if the username is already taken", async () => {
-    const username = faker.internet.userName();
+    const username = faker.internet.username();
     
     // Mock the user creation to throw an error (simulating unique constraint violation)
     prisma.user.create.mockRejectedValue(new Error("Unique constraint violation"));
 
     await testApiHandler({
-      handler: POST,
+      appHandler: POST,
       test: async ({ fetch }) => {
         const res = await fetch({
           method: "POST",

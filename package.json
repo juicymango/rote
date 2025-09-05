@@ -14,6 +14,7 @@
     "e2e:headless": "start-server-and-test dev http://localhost:3000 \"cypress run\""
   },
   "dependencies": {
+    "@prisma/client": "^6.15.0",
     "bcrypt": "^6.0.0",
     "next": "15.5.2",
     "next-auth": "^4.24.11",

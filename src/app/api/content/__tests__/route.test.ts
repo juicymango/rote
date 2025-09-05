@@ -1,36 +1,66 @@
 import { testApiHandler } from "next-test-api-route-handler";
 import { POST, GET } from "../route";
 import { faker } from "@faker-js/faker";
-import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
+
+// Mock Prisma client
+jest.mock("@/lib/prisma", () => ({
+  user: {
+    create: jest.fn(),
+    findUnique: jest.fn(),
+    findMany: jest.fn(),
+    deleteMany: jest.fn(),
+  },
+  content: {
+    create: jest.fn(),
+    findUnique: jest.fn(),
+    findMany: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    deleteMany: jest.fn(),
+  },
+  $transaction: jest.fn((fn) => fn()),
+}));
+
+const prisma = require("@/lib/prisma");
 
 // Mock the getServerSession function
 jest.mock("next-auth");
 const mockGetServerSession = getServerSession as jest.Mock;
 
 describe("POST /api/content", () => {
-  beforeEach(async () => {
-    // Reset the database before each test
-    await prisma.content.deleteMany({});
-    await prisma.user.deleteMany({});
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
   it("should create a new piece of content for an authenticated user", async () => {
-    const user = await prisma.user.create({
-      data: {
-        username: faker.internet.userName(),
-        email: faker.internet.email(),
-        password_hash: faker.internet.password(),
-      },
-    });
+    const mockUser = {
+      id: faker.string.uuid(),
+      username: faker.internet.username(),
+      email: faker.internet.email(),
+      password_hash: "hashed_password",
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
 
-    mockGetServerSession.mockReturnValue(Promise.resolve({ user: { id: user.id } }));
+    const mockContent = {
+      id: faker.string.uuid(),
+      user_id: mockUser.id,
+      title: faker.lorem.sentence(),
+      body: faker.lorem.paragraph(),
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
+
+    prisma.user.create.mockResolvedValue(mockUser);
+    prisma.content.create.mockResolvedValue(mockContent);
+    mockGetServerSession.mockReturnValue(Promise.resolve({ user: { id: mockUser.id } }));
 
     const title = faker.lorem.sentence();
     const body = faker.lorem.paragraph();
 
     await testApiHandler({
-      handler: POST,
+      appHandler: POST,
       test: async ({ fetch }) => {
         const res = await fetch({
           method: "POST",
@@ -85,7 +115,7 @@ describe("GET /api/content", () => {
   it("should return a list of content for an authenticated user", async () => {
     const user = await prisma.user.create({
       data: {
-        username: faker.internet.userName(),
+        username: faker.internet.username(),
         email: faker.internet.email(),
         password_hash: faker.internet.password(),
       },
@@ -102,7 +132,7 @@ describe("GET /api/content", () => {
     mockGetServerSession.mockReturnValue(Promise.resolve({ user: { id: user.id } }));
 
     await testApiHandler({
-      handler: GET,
+      appHandler: GET,
       test: async ({ fetch }) => {
         const res = await fetch();
         const json = await res.json();
@@ -117,7 +147,7 @@ describe("GET /api/content", () => {
   it("should return an empty list if the user has no content", async () => {
     const user = await prisma.user.create({
       data: {
-        username: faker.internet.userName(),
+        username: faker.internet.username(),
         email: faker.internet.email(),
         password_hash: faker.internet.password(),
       },
@@ -126,7 +156,7 @@ describe("GET /api/content", () => {
     mockGetServerSession.mockReturnValue(Promise.resolve({ user: { id: user.id } }));
 
     await testApiHandler({
-      handler: GET,
+      appHandler: GET,
       test: async ({ fetch }) => {
         const res = await fetch();
         const json = await res.json();
@@ -142,7 +172,7 @@ describe("GET /api/content", () => {
     mockGetServerSession.mockReturnValue(Promise.resolve(null));
 
     await testApiHandler({
-      handler: GET,
+      appHandler: GET,
       test: async ({ fetch }) => {
         const res = await fetch();
 

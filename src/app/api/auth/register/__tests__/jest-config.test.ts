@@ -12,7 +12,7 @@ describe("Jest Configuration Test", () => {
   });
 
   it("should generate fake data", () => {
-    const username = faker.internet.userName();
+    const username = faker.internet.username();
     const email = faker.internet.email();
     
     expect(username).toBeDefined();

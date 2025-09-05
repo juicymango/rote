@@ -1,65 +1,85 @@
 # Code Structure for Rote (Next.js)
 
-This document outlines the high-level design and code structure for the Rote application, which will be built using Next.js and PostgreSQL.
+This document outlines the high-level design and code structure for the Rote application, which is currently built using Next.js and PostgreSQL.
 
 ## 1. Technology Stack
 
-- **Framework**: Next.js 14.2.3
-- **Database**: PostgreSQL 16.2
-- **Authentication**: NextAuth.js
-- **ORM**: Prisma
-- **Styling**: Tailwind CSS
+- **Framework**: Next.js 15.5.2
+- **Database**: PostgreSQL
+- **Authentication**: NextAuth.js 4.24.11
+- **ORM**: Prisma 6.15.0
+- **Testing**: Jest 30.1.2
+- **Styling**: Tailwind CSS 4
 
 ## 2. Project Structure
 
 ```
-/app
-  /api
+/src
+  /app
+    /api
+      /auth
+        /[...nextauth]
+          /route.ts
+        /register
+          /route.ts
+          /__tests__
+            /route.test.ts
+      /content
+        /route.ts
+        /__tests__
+          /route.test.ts
+        /[id]
+          /route.ts
+          /__tests__
+            /route.test.ts
+      /recite
+        /today
+          /route.ts
+          /__tests__
+            /today.test.ts
+        /[id]
+          /route.ts
+          /__tests__
+            /route.test.ts
     /auth
-      /[...nextauth]
-        /route.ts
+      /login
+        /page.tsx
+      /register
+        /page.tsx
+    /dashboard
+      /page.tsx
     /content
-      /route.ts
+      /page.tsx
       /[id]
-        /route.ts
+        /page.tsx
     /recite
-      /today
-        /route.ts
-      /[id]
-        /route.ts
-  /auth
-    /login
       /page.tsx
-    /register
-      /page.tsx
-  /dashboard
+    /layout.tsx
     /page.tsx
-  /content
-    /page.tsx
-    /[id]
-      /page.tsx
-  /recite
-    /page.tsx
-  /layout.tsx
-  /page.tsx
+  /lib
+    /auth.ts
+    /prisma.ts
+    /sm2.ts
+  /__mocks__
+    /next-auth.ts
+  /middleware.ts
 /components
-  /ui
-    /Button.tsx
-    /Input.tsx
-    /Card.tsx
-  /Navbar.tsx
-  /Footer.tsx
-/lib
-  /auth.ts
-  /db.ts
-  /prisma.ts
-  /sm2.ts
+/cypress
+  /e2e
+  /support
 /prisma
   /schema.prisma
   /migrations
-.env.local
-next.config.js
+  /reset.ts
+.env
+.env.test
+babel.config.js
+cypress.config.ts
+jest.config.js
+jest.setup.ts
+next.config.ts
 package.json
+tsconfig.json
 ```
 
 ## 3. Component Hierarchy

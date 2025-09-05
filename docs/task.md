@@ -120,3 +120,17 @@ we are implementing a website to recite anything.
 - rewrite it by a detail step by step operation guide, inclulding the exact commands to run.
 - update ./docs/test.md.
 - commit and push all the changes.
+
+# task 18
+
+- it seems the project is not implemented correctly.
+- please review the process of the previous tasks.
+- understand the current implementation.
+- update ./docs/code_structure.md based on the current implementation.
+- update ./docs/system_design.md based on the current implementation.
+- update ./docs/test.md based on the current implementation.
+- append the following content to ./docs/plan.md.
+    - state the current issues, and explain why.
+    - make your plan to fix the issues. you can either fix it or refactor the whole project.
+- not to implement yet.
+- commit and push all the changes.

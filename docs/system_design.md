@@ -2,11 +2,12 @@
 
 ## 1. High-level Architecture
 
-The system will be based on a classic client-server architecture.
+The system is implemented using Next.js with an integrated frontend and backend architecture.
 
-- **Client**: A web-based frontend built with a modern JavaScript framework (e.g., React, Vue, or Angular). The client will be responsible for rendering the user interface and interacting with the backend APIs.
-- **Backend**: A RESTful API server built with a backend framework (e.g., Node.js with Express, Python with Django/Flask, or Go with Gin). The backend will handle business logic, user authentication, and database operations.
-- **Database**: A relational database (e.g., PostgreSQL, MySQL) to store user data, content, and recitation progress.
+- **Frontend**: Built with Next.js 15.5.2 and React 19.1.0, providing server-side rendering and API routes in a single codebase.
+- **Backend**: Integrated Next.js API routes handling business logic, user authentication, and database operations.
+- **Database**: PostgreSQL with Prisma ORM for data persistence.
+- **Authentication**: NextAuth.js 4.24.11 for user session management.
 
 ## 2. Data Models
 
@@ -14,38 +15,38 @@ The system will be based on a classic client-server architecture.
 
 | Column | Data Type | Description |
 |---|---|---|
-| id | UUID | Primary Key |
-| username | VARCHAR(255) | User's username (unique) |
-| email | VARCHAR(255) | User's email (unique) |
-| password_hash | VARCHAR(255) | Hashed password |
-| created_at | TIMESTAMP | Timestamp of user creation |
-| updated_at | TIMESTAMP | Timestamp of last user update |
+| id | String | Primary Key (CUID) |
+| username | String | User's username (unique) |
+| email | String | User's email (unique) |
+| password_hash | String | Hashed password using bcrypt |
+| created_at | DateTime | Timestamp of user creation |
+| updated_at | DateTime | Timestamp of last user update |
 
 ### Content Table
 
 | Column | Data Type | Description |
 |---|---|---|
-| id | UUID | Primary Key |
-| user_id | UUID | Foreign Key to Users table |
-| title | VARCHAR(255) | Title of the content |
-| body | TEXT | The content to be recited |
-| created_at | TIMESTAMP | Timestamp of content creation |
-| updated_at | TIMESTAMP | Timestamp of last content update |
+| id | String | Primary Key (CUID) |
+| user_id | String | Foreign Key to Users table |
+| title | String | Title of the content |
+| body | String | The content to be recited |
+| created_at | DateTime | Timestamp of content creation |
+| updated_at | DateTime | Timestamp of last content update |
 
 ### Recitation Progress Table
 
 | Column | Data Type | Description |
 |---|---|---|
-| id | UUID | Primary Key |
-| user_id | UUID | Foreign Key to Users table |
-| content_id | UUID | Foreign Key to Content table |
-| n | INTEGER | Repetition count (from SM-2) |
-| ef | FLOAT | Easiness factor (from SM-2) |
-| i | INTEGER | Interval in days (from SM-2) |
-| next_recite_at | TIMESTAMP | Timestamp of the next scheduled recitation |
-| last_recited_at | TIMESTAMP | Timestamp of the last recitation |
-| created_at | TIMESTAMP | Timestamp of progress creation |
-| updated_at | TIMESTAMP | Timestamp of last progress update |
+| id | String | Primary Key (CUID) |
+| user_id | String | Foreign Key to Users table |
+| content_id | String | Foreign Key to Content table |
+| n | Int | Repetition count (from SM-2) |
+| ef | Float | Easiness factor (from SM-2) |
+| i | Int | Interval in days (from SM-2) |
+| next_recite_at | DateTime | Timestamp of the next scheduled recitation |
+| last_recited_at | DateTime | Timestamp of the last recitation |
+| created_at | DateTime | Timestamp of progress creation |
+| updated_at | DateTime | Timestamp of last progress update |
 
 ## 3. Functional APIs
 
@@ -115,37 +116,45 @@ When a user submits a recitation result (`POST /api/recite/:content_id`), the ba
 - **Input Validation**: Validate all user input to prevent SQL injection, XSS, and other attacks.
 - **HTTPS**: Use HTTPS to encrypt all communication between the client and the server.
 
-## 6. Technology Choices
+## 6. Technology Choices (Implemented)
 
-### Frontend
+### Frontend and Backend
 
-| Technology | Pros | Cons |
+| Technology | Version | Description |
 |---|---|---|
-| React | Large ecosystem, component-based, great for single-page applications. | Can be complex to set up, requires knowledge of JSX. |
-| Vue.js | Easy to learn, good documentation, flexible. | Smaller ecosystem than React. |
-| Angular | Full-featured framework, good for large applications, backed by Google. | Steep learning curve, can be overkill for small projects. |
+| Next.js | 15.5.2 | React framework with server-side rendering and API routes |
+| React | 19.1.0 | UI library for building interactive user interfaces |
+| TypeScript | 5.x | Static type checking for JavaScript |
 
-**Decision**: **React**. Its large community, rich ecosystem, and component-based architecture make it a good choice for building a modern, interactive user interface.
+### Database and ORM
 
-### Backend
-
-| Technology | Pros | Cons |
+| Technology | Version | Description |
 |---|---|---|
-| Node.js (with Express) | Fast and scalable, uses JavaScript (same language as the frontend), large number of packages available through npm. | Can be inefficient for CPU-intensive tasks. |
-| Python (with Django/Flask) | Easy to learn, great for data-intensive applications, large number of libraries available. | Can be slower than Node.js or Go. |
-| Go (with Gin) | Excellent performance, great for building concurrent applications, statically typed. | Smaller ecosystem than Node.js or Python. |
+| PostgreSQL | Latest | Relational database for data persistence |
+| Prisma | 6.15.0 | Type-safe ORM for database operations |
 
-**Decision**: **Go with Gin**. Since the project is already in a Go environment, it makes sense to use Go for the backend. Go is also highly performant and well-suited for building scalable APIs. Gin is a lightweight and fast framework for building web applications in Go.
+### Authentication and Security
 
-### Database
-
-| Technology | Pros | Cons |
+| Technology | Version | Description |
 |---|---|---|
-| PostgreSQL | Feature-rich, highly extensible, strong support for JSON. | Can be more complex to manage than MySQL. |
-| MySQL | Easy to use, good performance, widely used. | Less feature-rich than PostgreSQL. |
-| SQLite | Lightweight, serverless, easy to set up. | Not suitable for large-scale or concurrent applications. |
+| NextAuth.js | 4.24.11 | Authentication library for Next.js |
+| bcrypt | 6.0.0 | Password hashing library |
 
-**Decision**: **PostgreSQL**. Its robustness, feature set (including strong JSON support), and scalability make it a good choice for this application. It can handle the relational data model well and provides a solid foundation for future growth.
+### Testing
+
+| Technology | Version | Description |
+|---|---|---|
+| Jest | 30.1.2 | JavaScript testing framework |
+| Cypress | 15.0.0 | End-to-end testing framework |
+| @testing-library/react | 16.3.0 | React testing utilities |
+
+### Development Tools
+
+| Technology | Version | Description |
+|---|---|---|
+| Tailwind CSS | 4 | Utility-first CSS framework |
+| ESLint | 9.x | JavaScript linting utility |
+| Babel | 7.x | JavaScript compiler |
 
 ## 7. Is Next.js a better choice?
 

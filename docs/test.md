@@ -48,7 +48,7 @@ By implementing this automated testing strategy, we can ensure that the Rote app
 
 ## 5. API Testing
 
-We will use Jest and `next-test-api-route-handler` to write integration tests for our API routes. We will also use a separate test database to avoid polluting the development database.
+We use Jest and `next-test-api-route-handler` to write integration tests for our API routes. We also use a separate test database to avoid polluting the development database.
 
 ### Test Cases
 
@@ -56,12 +56,12 @@ We will use Jest and `next-test-api-route-handler` to write integration tests fo
 
 -   **`POST /api/auth/register`**
     -   **Test Code Path**: `src/app/api/auth/register/__tests__/route.test.ts`
-    -   **Test Case 1**: Should register a new user with valid data.
-    -   **Test Case 2**: Should return an error if the email is already taken.
-    -   **Test Case 3**: Should return an error if the username is already taken.
-    -   **Test Case 4**: Should return an error if the email is invalid. (Not implemented)
-    -   **Test Case 5**: Should return an error if the password is too short. (Not implemented)
--   **`POST /api/auth/login`** (Not implemented)
+    -   **Test Case 1**: Should register a new user with valid data. (✅ Implemented)
+    -   **Test Case 2**: Should return an error if the email is already taken. (✅ Implemented)
+    -   **Test Case 3**: Should return an error if the username is already taken. (✅ Implemented)
+    -   **Test Case 4**: Should return an error if the email is invalid. (❌ Not implemented)
+    -   **Test Case 5**: Should return an error if the password is too short. (❌ Not implemented)
+-   **`POST /api/auth/login`** (❌ Not implemented)
     -   **Test Case 1**: Should log in a user with valid credentials.
     -   **Test Case 2**: Should return an error with invalid credentials.
 
@@ -69,46 +69,62 @@ We will use Jest and `next-test-api-route-handler` to write integration tests fo
 
 -   **`POST /api/content`**
     -   **Test Code Path**: `src/app/api/content/__tests__/route.test.ts`
-    -   **Test Case 1**: Should create a new piece of content for an authenticated user.
-    -   **Test Case 2**: Should return an error if the user is not authenticated.
+    -   **Test Case 1**: Should create a new piece of content for an authenticated user. (✅ Implemented)
+    -   **Test Case 2**: Should return an error if the user is not authenticated. (✅ Implemented)
 -   **`GET /api/content`**
     -   **Test Code Path**: `src/app/api/content/__tests__/route.test.ts`
-    -   **Test Case 1**: Should return a list of content for an authenticated user.
-    -   **Test Case 2**: Should return an empty list if the user has no content.
-    -   **Test Case 3**: Should return an error if the user is not authenticated.
+    -   **Test Case 1**: Should return a list of content for an authenticated user. (✅ Implemented)
+    -   **Test Case 2**: Should return an empty list if the user has no content. (✅ Implemented)
+    -   **Test Case 3**: Should return an error if the user is not authenticated. (✅ Implemented)
 -   **`GET /api/content/:id`**
     -   **Test Code Path**: `src/app/api/content/[id]/__tests__/route.test.ts`
-    -   **Test Case 1**: Should return a specific piece of content for an authenticated user.
-    -   **Test Case 2**: Should return an error if the content does not exist.
-    -   **Test Case 3**: Should return an error if the user is not the owner of the content.
-    -   **Test Case 4**: Should return an error if the user is not authenticated.
+    -   **Test Case 1**: Should return a specific piece of content for an authenticated user. (✅ Implemented)
+    -   **Test Case 2**: Should return an error if the content does not exist. (✅ Implemented)
+    -   **Test Case 3**: Should return an error if the user is not the owner of the content. (✅ Implemented)
+    -   **Test Case 4**: Should return an error if the user is not authenticated. (✅ Implemented)
 -   **`PUT /api/content/:id`**
     -   **Test Code Path**: `src/app/api/content/[id]/__tests__/route.test.ts`
-    -   **Test Case 1**: Should update a specific piece of content for an authenticated user.
-    -   **Test Case 2**: Should return an error if the content does not exist.
-    -   **Test Case 3**: Should return an error if the user is not the owner of the content.
-    -   **Test Case 4**: Should return an error if the user is not authenticated.
+    -   **Test Case 1**: Should update a specific piece of content for an authenticated user. (✅ Implemented)
+    -   **Test Case 2**: Should return an error if the content does not exist. (❌ Not implemented)
+    -   **Test Case 3**: Should return an error if the user is not the owner of the content. (❌ Not implemented)
+    -   **Test Case 4**: Should return an error if the user is not authenticated. (❌ Not implemented)
 -   **`DELETE /api/content/:id`**
     -   **Test Code Path**: `src/app/api/content/[id]/__tests__/route.test.ts`
-    -   **Test Case 1**: Should delete a specific piece of content for an authenticated user.
-    -   **Test Case 2**: Should return an error if the content does not exist.
-    -   **Test Case 3**: Should return an error if the user is not the owner of the content.
-    -   **Test Case 4**: Should return an error if the user is not authenticated.
+    -   **Test Case 1**: Should delete a specific piece of content for an authenticated user. (✅ Implemented)
+    -   **Test Case 2**: Should return an error if the content does not exist. (❌ Not implemented)
+    -   **Test Case 3**: Should return an error if the user is not the owner of the content. (❌ Not implemented)
+    -   **Test Case 4**: Should return an error if the user is not authenticated. (❌ Not implemented)
 
 #### Recitation
 
 -   **`GET /api/recite/today`**
     -   **Test Code Path**: `src/app/api/recite/__tests__/today.test.ts`
-    -   **Test Case 1**: Should return a list of content to recite today for an authenticated user.
-    -   **Test Case 2**: Should return an empty list if there is no content to recite today.
-    -   **Test Case 3**: Should return an error if the user is not authenticated.
+    -   **Test Case 1**: Should return a list of content to recite today for an authenticated user. (❌ Not implemented)
+    -   **Test Case 2**: Should return an empty list if there is no content to recite today. (❌ Not implemented)
+    -   **Test Case 3**: Should return an error if the user is not authenticated. (❌ Not implemented)
 -   **`POST /api/recite/:id`**
     -   **Test Code Path**: `src/app/api/recite/[id]/__tests__/route.test.ts`
-    -   **Test Case 1**: Should submit the result of a recitation for an authenticated user.
-    -   **Test Case 2**: Should create a new recitation progress if it does not exist.
-    -   **Test Case 3**: Should update the recitation progress if it already exists.
-    -   **Test Case 4**: Should return an error if the content does not exist.
-    -   **Test Case 5**: Should return an error if the user is not authenticated.
+    -   **Test Case 1**: Should submit the result of a recitation for an authenticated user. (❌ Not implemented)
+    -   **Test Case 2**: Should create a new recitation progress if it does not exist. (❌ Not implemented)
+    -   **Test Case 3**: Should update the recitation progress if it already exists. (❌ Not implemented)
+    -   **Test Case 4**: Should return an error if the content does not exist. (❌ Not implemented)
+    -   **Test Case 5**: Should return an error if the user is not authenticated. (❌ Not implemented)
+
+## 6. Current Test Issues
+
+### Known Issues
+
+1. **Test Environment Configuration**: Some tests are failing due to missing `Request` object in the test environment
+2. **Incomplete Test Coverage**: Many test cases are marked as "Not implemented" 
+3. **Test Database Setup**: Test database reset and migration scripts need to be properly configured
+4. **Mock Configuration**: NextAuth mocking needs to be properly set up for all test files
+
+### Test Status Summary
+
+- **Total Test Cases**: 25
+- **Implemented**: 13 (52%)
+- **Not Implemented**: 12 (48%)
+- **Passing**: Unknown (tests currently failing due to environment issues)
 
 ### How to Test
 

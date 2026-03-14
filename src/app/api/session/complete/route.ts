@@ -24,7 +24,7 @@ export async function POST(request: Request) {
   }
 
   const today = new Date();
-  const updates: Promise<unknown>[] = [];
+  const updates = [];
 
   for (const entry of results) {
     const { id, outcome, interval_days, consecutive_correct } =
@@ -44,6 +44,7 @@ export async function POST(request: Request) {
         })
         .eq("id", id)
         .eq("user_id", user.id)
+        .then()
     );
   }
 

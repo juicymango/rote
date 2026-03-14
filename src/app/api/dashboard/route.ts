@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
@@ -13,13 +16,13 @@ export async function GET() {
     // Get basic statistics
     const totalContent = await prisma.content.count({
       where: {
-        userId: session.user.id,
+        userId: user.id,
       },
     });
 
     const totalProgress = await prisma.recitationProgress.count({
       where: {
-        userId: session.user.id,
+        userId: user.id,
       },
     });
 
@@ -29,7 +32,7 @@ export async function GET() {
 
     const dueToday = await prisma.recitationProgress.count({
       where: {
-        userId: session.user.id,
+        userId: user.id,
         next_recite_at: {
           lte: today,
         },
@@ -39,7 +42,7 @@ export async function GET() {
     // Get detailed progress information
     const progress = await prisma.recitationProgress.findMany({
       where: {
-        userId: session.user.id,
+        userId: user.id,
       },
       include: {
         content: true,
@@ -51,9 +54,10 @@ export async function GET() {
 
     // Calculate statistics
     const numRecitations = progress.length;
-    const avgEf = numRecitations > 0
-      ? progress.reduce((acc, p) => acc + p.ef, 0) / numRecitations
-      : 0;
+    const avgEf =
+      numRecitations > 0
+        ? progress.reduce((acc, p) => acc + p.ef, 0) / numRecitations
+        : 0;
 
     // Get content due in next 7 days
     const nextWeek = new Date();
@@ -61,7 +65,7 @@ export async function GET() {
 
     const dueNextWeek = await prisma.recitationProgress.findMany({
       where: {
-        userId: session.user.id,
+        userId: user.id,
         next_recite_at: {
           gt: today,
           lte: nextWeek,
@@ -77,17 +81,17 @@ export async function GET() {
 
     // Calculate proficiency levels
     const proficiencyLevels = {
-      beginner: progress.filter(p => p.n < 3).length,
-      intermediate: progress.filter(p => p.n >= 3 && p.n < 7).length,
-      advanced: progress.filter(p => p.n >= 7).length,
+      beginner: progress.filter((p) => p.n < 3).length,
+      intermediate: progress.filter((p) => p.n >= 3 && p.n < 7).length,
+      advanced: progress.filter((p) => p.n >= 7).length,
     };
 
     // Get recent activity (last 7 days)
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const recentActivity = progress.filter(p => 
-      p.last_recited_at >= sevenDaysAgo
+    const recentActivity = progress.filter(
+      (p) => p.last_recited_at >= sevenDaysAgo
     );
 
     return NextResponse.json({

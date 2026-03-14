@@ -1,59 +1,65 @@
 import { testApiHandler } from "next-test-api-route-handler";
-import { GET } from "../../today/route";
+import { GET } from "../today/route";
 import { faker } from "@faker-js/faker";
-import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 
-// Mock the getServerSession function
-jest.mock("next-auth");
-const mockGetServerSession = getServerSession as jest.Mock;
+// Mock Prisma client
+jest.mock("@/lib/prisma", () => ({
+  recitationProgress: {
+    findMany: jest.fn(),
+  },
+}));
+
+const prisma = require("@/lib/prisma");
+
+// Mock Supabase server client
+const mockGetUser = jest.fn();
+jest.mock("@/lib/supabase/server", () => ({
+  createClient: jest.fn(() => ({
+    auth: {
+      getUser: mockGetUser,
+    },
+  })),
+}));
 
 describe("GET /api/recite/today", () => {
-  beforeEach(async () => {
-    // Reset the database before each test
-    await prisma.recitationProgress.deleteMany({});
-    await prisma.content.deleteMany({});
-    await prisma.user.deleteMany({});
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
   it("should return a list of content to recite today for an authenticated user", async () => {
-    const user = await prisma.user.create({
-      data: {
-        username: faker.internet.username(),
-        email: faker.internet.email(),
-        password_hash: faker.internet.password(),
-      },
-    });
+    const mockUser = { id: faker.string.uuid(), email: faker.internet.email() };
+    const mockContent = {
+      id: faker.string.uuid(),
+      userId: mockUser.id,
+      title: faker.lorem.sentence(),
+      body: faker.lorem.paragraph(),
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
 
-    const content = await prisma.content.create({
-      data: {
-        title: faker.lorem.sentence(),
-        body: faker.lorem.paragraph(),
-        userId: user.id,
-      },
-    });
-
-    await prisma.recitationProgress.create({
-      data: {
-        userId: user.id,
-        contentId: content.id,
+    const mockProgress = [
+      {
+        id: faker.string.uuid(),
+        userId: mockUser.id,
+        contentId: mockContent.id,
+        content: mockContent,
         n: 0,
         ef: 2.5,
         i: 0,
         next_recite_at: new Date(),
         last_recited_at: new Date(),
       },
-    });
+    ];
 
-    mockGetServerSession.mockReturnValue(Promise.resolve({ user: { id: user.id } }));
+    mockGetUser.mockResolvedValue({ data: { user: mockUser } });
+    prisma.recitationProgress.findMany.mockResolvedValue(mockProgress);
 
     await testApiHandler({
-      handler: GET,
+      appHandler: { GET },
       test: async ({ fetch }) => {
         const res = await fetch();
         const json = await res.json();
 
-        // Check if the response is correct
         expect(res.status).toBe(200);
         expect(json.length).toBe(1);
       },
@@ -61,23 +67,17 @@ describe("GET /api/recite/today", () => {
   });
 
   it("should return an empty list if there is no content to recite today", async () => {
-    const user = await prisma.user.create({
-      data: {
-        username: faker.internet.username(),
-        email: faker.internet.email(),
-        password_hash: faker.internet.password(),
-      },
-    });
+    const mockUser = { id: faker.string.uuid(), email: faker.internet.email() };
 
-    mockGetServerSession.mockReturnValue(Promise.resolve({ user: { id: user.id } }));
+    mockGetUser.mockResolvedValue({ data: { user: mockUser } });
+    prisma.recitationProgress.findMany.mockResolvedValue([]);
 
     await testApiHandler({
-      handler: GET,
+      appHandler: { GET },
       test: async ({ fetch }) => {
         const res = await fetch();
         const json = await res.json();
 
-        // Check if the response is correct
         expect(res.status).toBe(200);
         expect(json.length).toBe(0);
       },
@@ -85,14 +85,13 @@ describe("GET /api/recite/today", () => {
   });
 
   it("should return an error if the user is not authenticated", async () => {
-    mockGetServerSession.mockReturnValue(Promise.resolve(null));
+    mockGetUser.mockResolvedValue({ data: { user: null } });
 
     await testApiHandler({
-      handler: GET,
+      appHandler: { GET },
       test: async ({ fetch }) => {
         const res = await fetch();
 
-        // Check if the response is correct
         expect(res.status).toBe(401);
       },
     });

@@ -26,11 +26,14 @@ jest.mock("@/lib/prisma", () => ({
 }));
 
 const prisma = require("@/lib/prisma");
+const bcrypt = require("bcrypt");
 
 describe("POST /api/auth/register", () => {
   beforeEach(() => {
     // Reset mocks before each test
     jest.clearAllMocks();
+    // Make bcrypt.hash return a string by default
+    bcrypt.hash.mockResolvedValue("hashed_password");
   });
 
   it("should register a new user with valid data", async () => {
@@ -51,7 +54,7 @@ describe("POST /api/auth/register", () => {
     prisma.user.create.mockResolvedValue(mockUser);
 
     await testApiHandler({
-      appHandler: POST,
+      appHandler: { POST },
       test: async ({ fetch }) => {
         const res = await fetch({
           method: "POST",
@@ -82,12 +85,12 @@ describe("POST /api/auth/register", () => {
 
   it("should return an error if the email is already taken", async () => {
     const email = faker.internet.email();
-    
+
     // Mock the user creation to throw an error (simulating unique constraint violation)
     prisma.user.create.mockRejectedValue(new Error("Unique constraint violation"));
 
     await testApiHandler({
-      appHandler: POST,
+      appHandler: { POST },
       test: async ({ fetch }) => {
         const res = await fetch({
           method: "POST",
@@ -109,12 +112,12 @@ describe("POST /api/auth/register", () => {
 
   it("should return an error if the username is already taken", async () => {
     const username = faker.internet.username();
-    
+
     // Mock the user creation to throw an error (simulating unique constraint violation)
     prisma.user.create.mockRejectedValue(new Error("Unique constraint violation"));
 
     await testApiHandler({
-      appHandler: POST,
+      appHandler: { POST },
       test: async ({ fetch }) => {
         const res = await fetch({
           method: "POST",

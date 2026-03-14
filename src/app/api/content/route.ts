@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
@@ -15,7 +18,7 @@ export async function POST(req: Request) {
       data: {
         title,
         body,
-        userId: session.user.id,
+        userId: user.id,
       },
     });
     return NextResponse.json(content);
@@ -26,15 +29,19 @@ export async function POST(req: Request) {
 }
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
   try {
     const content = await prisma.content.findMany({
       where: {
-        userId: session.user.id,
+        userId: user.id,
       },
     });
     return NextResponse.json(content);

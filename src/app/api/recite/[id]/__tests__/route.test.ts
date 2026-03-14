@@ -1,43 +1,55 @@
 import { testApiHandler } from "next-test-api-route-handler";
 import { POST } from "../route";
 import { faker } from "@faker-js/faker";
-import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 
-// Mock the getServerSession function
-jest.mock("next-auth");
-const mockGetServerSession = getServerSession as jest.Mock;
+// Mock Prisma client
+jest.mock("@/lib/prisma", () => ({
+  recitationProgress: {
+    findFirst: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+  },
+}));
+
+const prisma = require("@/lib/prisma");
+
+// Mock Supabase server client
+const mockGetUser = jest.fn();
+jest.mock("@/lib/supabase/server", () => ({
+  createClient: jest.fn(() => ({
+    auth: {
+      getUser: mockGetUser,
+    },
+  })),
+}));
 
 describe("POST /api/recite/:id", () => {
-  beforeEach(async () => {
-    // Reset the database before each test
-    await prisma.recitationProgress.deleteMany({});
-    await prisma.content.deleteMany({});
-    await prisma.user.deleteMany({});
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
   it("should submit the result of a recitation for an authenticated user", async () => {
-    const user = await prisma.user.create({
-      data: {
-        username: faker.internet.username(),
-        email: faker.internet.email(),
-        password_hash: faker.internet.password(),
-      },
-    });
+    const mockUser = { id: faker.string.uuid(), email: faker.internet.email() };
+    const contentId = faker.string.uuid();
 
-    const content = await prisma.content.create({
-      data: {
-        title: faker.lorem.sentence(),
-        body: faker.lorem.paragraph(),
-        userId: user.id,
-      },
-    });
+    const mockProgress = {
+      id: faker.string.uuid(),
+      userId: mockUser.id,
+      contentId,
+      n: 0,
+      ef: 2.5,
+      i: 0,
+      next_recite_at: new Date(),
+      last_recited_at: new Date(),
+    };
 
-    mockGetServerSession.mockReturnValue(Promise.resolve({ user: { id: user.id } }));
+    mockGetUser.mockResolvedValue({ data: { user: mockUser } });
+    prisma.recitationProgress.findFirst.mockResolvedValue(mockProgress);
+    prisma.recitationProgress.update.mockResolvedValue({ ...mockProgress, n: 1 });
 
     await testApiHandler({
-      handler: POST,
-      params: { id: content.id },
+      appHandler: { POST },
+      params: { id: contentId },
       test: async ({ fetch }) => {
         const res = await fetch({
           method: "POST",
@@ -47,44 +59,41 @@ describe("POST /api/recite/:id", () => {
           body: JSON.stringify({ q: 4 }),
         });
 
-        // Check if the response is correct
         expect(res.status).toBe(200);
 
-        // Check if the recitation progress is created in the database
-        const progress = await prisma.recitationProgress.findFirst({
-          where: {
-            userId: user.id,
-            contentId: content.id,
-          },
-        });
-        expect(progress).not.toBeNull();
-        expect(progress?.n).toBe(1);
+        expect(prisma.recitationProgress.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: { id: mockProgress.id },
+            data: expect.objectContaining({ n: 1 }),
+          })
+        );
       },
     });
   });
 
   it("should create a new recitation progress if it does not exist", async () => {
-    const user = await prisma.user.create({
-      data: {
-        username: faker.internet.username(),
-        email: faker.internet.email(),
-        password_hash: faker.internet.password(),
-      },
-    });
+    const mockUser = { id: faker.string.uuid(), email: faker.internet.email() };
+    const contentId = faker.string.uuid();
 
-    const content = await prisma.content.create({
-      data: {
-        title: faker.lorem.sentence(),
-        body: faker.lorem.paragraph(),
-        userId: user.id,
-      },
-    });
+    const newProgress = {
+      id: faker.string.uuid(),
+      userId: mockUser.id,
+      contentId,
+      n: 0,
+      ef: 2.5,
+      i: 0,
+      next_recite_at: new Date(),
+      last_recited_at: new Date(),
+    };
 
-    mockGetServerSession.mockReturnValue(Promise.resolve({ user: { id: user.id } }));
+    mockGetUser.mockResolvedValue({ data: { user: mockUser } });
+    prisma.recitationProgress.findFirst.mockResolvedValue(null);
+    prisma.recitationProgress.create.mockResolvedValue(newProgress);
+    prisma.recitationProgress.update.mockResolvedValue({ ...newProgress, n: 1 });
 
     await testApiHandler({
-      handler: POST,
-      params: { id: content.id },
+      appHandler: { POST },
+      params: { id: contentId },
       test: async ({ fetch }) => {
         const res = await fetch({
           method: "POST",
@@ -94,55 +103,34 @@ describe("POST /api/recite/:id", () => {
           body: JSON.stringify({ q: 4 }),
         });
 
-        // Check if the response is correct
         expect(res.status).toBe(200);
-
-        // Check if the recitation progress is created in the database
-        const progress = await prisma.recitationProgress.findFirst({
-          where: {
-            userId: user.id,
-            contentId: content.id,
-          },
-        });
-        expect(progress).not.toBeNull();
+        expect(prisma.recitationProgress.create).toHaveBeenCalled();
       },
     });
   });
 
   it("should update the recitation progress if it already exists", async () => {
-    const user = await prisma.user.create({
-      data: {
-        username: faker.internet.username(),
-        email: faker.internet.email(),
-        password_hash: faker.internet.password(),
-      },
-    });
+    const mockUser = { id: faker.string.uuid(), email: faker.internet.email() };
+    const contentId = faker.string.uuid();
 
-    const content = await prisma.content.create({
-      data: {
-        title: faker.lorem.sentence(),
-        body: faker.lorem.paragraph(),
-        userId: user.id,
-      },
-    });
+    const existingProgress = {
+      id: faker.string.uuid(),
+      userId: mockUser.id,
+      contentId,
+      n: 1,
+      ef: 2.5,
+      i: 6,
+      next_recite_at: new Date(),
+      last_recited_at: new Date(),
+    };
 
-    await prisma.recitationProgress.create({
-      data: {
-        userId: user.id,
-        contentId: content.id,
-        n: 1,
-        ef: 2.5,
-        i: 6,
-        next_recite_at: new Date(),
-        last_recited_at: new Date(),
-      },
-    });
-
-    mockGetServerSession.mockReturnValue(Promise.resolve({ user: { id: user.id } }));
+    mockGetUser.mockResolvedValue({ data: { user: mockUser } });
+    prisma.recitationProgress.findFirst.mockResolvedValue(existingProgress);
+    prisma.recitationProgress.update.mockResolvedValue({ ...existingProgress, n: 2 });
 
     await testApiHandler({
-      handler: POST,
-      params: { id: content.id },
+      appHandler: { POST },
+      params: { id: contentId },
       test: async ({ fetch }) => {
         const res = await fetch({
           method: "POST",
@@ -152,17 +140,14 @@ describe("POST /api/recite/:id", () => {
           body: JSON.stringify({ q: 4 }),
         });
 
-        // Check if the response is correct
         expect(res.status).toBe(200);
 
-        // Check if the recitation progress is updated in the database
-        const progress = await prisma.recitationProgress.findFirst({
-          where: {
-            userId: user.id,
-            contentId: content.id,
-          },
-        });
-        expect(progress?.n).toBe(2);
+        expect(prisma.recitationProgress.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: { id: existingProgress.id },
+            data: expect.objectContaining({ n: 2 }),
+          })
+        );
       },
     });
   });

@@ -1,25 +1,28 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 import { sm2 } from "@/lib/sm2";
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
   try {
     const { q } = await req.json();
-    const contentId = params.id;
+    const { id: contentId } = await params;
 
     let progress = await prisma.recitationProgress.findFirst({
       where: {
-        userId: session.user.id,
+        userId: user.id,
         contentId: contentId,
       },
     });
@@ -27,7 +30,7 @@ export async function POST(
     if (!progress) {
       progress = await prisma.recitationProgress.create({
         data: {
-          userId: session.user.id,
+          userId: user.id,
           contentId: contentId,
           n: 0,
           ef: 2.5,

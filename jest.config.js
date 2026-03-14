@@ -6,7 +6,7 @@ module.exports = {
   },
   transform: {
     "^.+\\.(ts|tsx)$": ["ts-jest", {
-      tsconfig: "tsconfig.json",
+      tsconfig: "tsconfig.test.json",
     }],
     "^.+\\.(js|jsx)$": ["babel-jest"],
   },
@@ -19,7 +19,7 @@ module.exports = {
     "!src/**/*.test.ts",
   ],
   transformIgnorePatterns: [
-    "node_modules/(?!(@next-auth|next-test-api-route-handler|@faker-js|@prisma)/)",
+    "node_modules/(?!(@next-auth|next-test-api-route-handler|@faker-js|@prisma|@supabase)/)",
   ],
   testTimeout: 10000,
 };

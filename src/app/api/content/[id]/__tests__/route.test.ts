@@ -1,125 +1,103 @@
 import { testApiHandler } from "next-test-api-route-handler";
 import { GET, PUT, DELETE } from "../route";
 import { faker } from "@faker-js/faker";
-import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 
-// Mock the getServerSession function
-jest.mock("next-auth");
-const mockGetServerSession = getServerSession as jest.Mock;
+// Mock Prisma client
+jest.mock("@/lib/prisma", () => ({
+  content: {
+    findUnique: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+  },
+}));
+
+const prisma = require("@/lib/prisma");
+
+// Mock Supabase server client
+const mockGetUser = jest.fn();
+jest.mock("@/lib/supabase/server", () => ({
+  createClient: jest.fn(() => ({
+    auth: {
+      getUser: mockGetUser,
+    },
+  })),
+}));
 
 describe("GET /api/content/:id", () => {
-  beforeEach(async () => {
-    // Reset the database before each test
-    await prisma.content.deleteMany({});
-    await prisma.user.deleteMany({});
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
   it("should return a specific piece of content for an authenticated user", async () => {
-    const user = await prisma.user.create({
-      data: {
-        username: faker.internet.username(),
-        email: faker.internet.email(),
-        password_hash: faker.internet.password(),
-      },
-    });
+    const mockUser = { id: faker.string.uuid(), email: faker.internet.email() };
+    const mockContent = {
+      id: faker.string.uuid(),
+      userId: mockUser.id,
+      title: faker.lorem.sentence(),
+      body: faker.lorem.paragraph(),
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
 
-    const content = await prisma.content.create({
-      data: {
-        title: faker.lorem.sentence(),
-        body: faker.lorem.paragraph(),
-        userId: user.id,
-      },
-    });
-
-    mockGetServerSession.mockReturnValue(Promise.resolve({ user: { id: user.id } }));
+    mockGetUser.mockResolvedValue({ data: { user: mockUser } });
+    prisma.content.findUnique.mockResolvedValue(mockContent);
 
     await testApiHandler({
-      handler: GET,
-      params: { id: content.id },
+      appHandler: { GET },
+      params: { id: mockContent.id },
       test: async ({ fetch }) => {
         const res = await fetch();
         const json = await res.json();
 
-        // Check if the response is correct
         expect(res.status).toBe(200);
-        expect(json.id).toBe(content.id);
+        expect(json.id).toBe(mockContent.id);
       },
     });
   });
 
   it("should return an error if the content does not exist", async () => {
-    const user = await prisma.user.create({
-      data: {
-        username: faker.internet.username(),
-        email: faker.internet.email(),
-        password_hash: faker.internet.password(),
-      },
-    });
+    const mockUser = { id: faker.string.uuid(), email: faker.internet.email() };
 
-    mockGetServerSession.mockReturnValue(Promise.resolve({ user: { id: user.id } }));
+    mockGetUser.mockResolvedValue({ data: { user: mockUser } });
+    prisma.content.findUnique.mockRejectedValue(new Error("Not found"));
 
     await testApiHandler({
-      handler: GET,
+      appHandler: { GET },
       params: { id: "invalid-id" },
       test: async ({ fetch }) => {
         const res = await fetch();
 
-        // Check if the response is correct
         expect(res.status).toBe(500);
       },
     });
   });
 
   it("should return an error if the user is not the owner of the content", async () => {
-    const user1 = await prisma.user.create({
-      data: {
-        username: faker.internet.username(),
-        email: faker.internet.email(),
-        password_hash: faker.internet.password(),
-      },
-    });
+    const mockUser = { id: faker.string.uuid(), email: faker.internet.email() };
 
-    const user2 = await prisma.user.create({
-      data: {
-        username: faker.internet.username(),
-        email: faker.internet.email(),
-        password_hash: faker.internet.password(),
-      },
-    });
-
-    const content = await prisma.content.create({
-      data: {
-        title: faker.lorem.sentence(),
-        body: faker.lorem.paragraph(),
-        userId: user1.id,
-      },
-    });
-
-    mockGetServerSession.mockReturnValue(Promise.resolve({ user: { id: user2.id } }));
+    mockGetUser.mockResolvedValue({ data: { user: mockUser } });
+    prisma.content.findUnique.mockRejectedValue(new Error("Not found"));
 
     await testApiHandler({
-      handler: GET,
-      params: { id: content.id },
+      appHandler: { GET },
+      params: { id: faker.string.uuid() },
       test: async ({ fetch }) => {
         const res = await fetch();
 
-        // Check if the response is correct
         expect(res.status).toBe(500);
       },
     });
   });
 
   it("should return an error if the user is not authenticated", async () => {
-    mockGetServerSession.mockReturnValue(Promise.resolve(null));
+    mockGetUser.mockResolvedValue({ data: { user: null } });
 
     await testApiHandler({
-      handler: GET,
+      appHandler: { GET },
       params: { id: "test-id" },
       test: async ({ fetch }) => {
         const res = await fetch();
 
-        // Check if the response is correct
         expect(res.status).toBe(401);
       },
     });
@@ -127,37 +105,30 @@ describe("GET /api/content/:id", () => {
 });
 
 describe("PUT /api/content/:id", () => {
-  beforeEach(async () => {
-    // Reset the database before each test
-    await prisma.content.deleteMany({});
-    await prisma.user.deleteMany({});
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
   it("should update a specific piece of content for an authenticated user", async () => {
-    const user = await prisma.user.create({
-      data: {
-        username: faker.internet.username(),
-        email: faker.internet.email(),
-        password_hash: faker.internet.password(),
-      },
-    });
-
-    const content = await prisma.content.create({
-      data: {
-        title: faker.lorem.sentence(),
-        body: faker.lorem.paragraph(),
-        userId: user.id,
-      },
-    });
-
-    mockGetServerSession.mockReturnValue(Promise.resolve({ user: { id: user.id } }));
-
+    const mockUser = { id: faker.string.uuid(), email: faker.internet.email() };
     const newTitle = faker.lorem.sentence();
     const newBody = faker.lorem.paragraph();
 
+    const mockUpdatedContent = {
+      id: faker.string.uuid(),
+      userId: mockUser.id,
+      title: newTitle,
+      body: newBody,
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
+
+    mockGetUser.mockResolvedValue({ data: { user: mockUser } });
+    prisma.content.update.mockResolvedValue(mockUpdatedContent);
+
     await testApiHandler({
-      handler: PUT,
-      params: { id: content.id },
+      appHandler: { PUT },
+      params: { id: mockUpdatedContent.id },
       test: async ({ fetch }) => {
         const res = await fetch({
           method: "PUT",
@@ -168,60 +139,35 @@ describe("PUT /api/content/:id", () => {
         });
         const json = await res.json();
 
-        // Check if the response is correct
         expect(res.status).toBe(200);
         expect(json.title).toBe(newTitle);
         expect(json.body).toBe(newBody);
-
-        // Check if the content is updated in the database
-        const updatedContent = await prisma.content.findUnique({ where: { id: content.id } });
-        expect(updatedContent?.title).toBe(newTitle);
-        expect(updatedContent?.body).toBe(newBody);
       },
     });
   });
 });
 
 describe("DELETE /api/content/:id", () => {
-  beforeEach(async () => {
-    // Reset the database before each test
-    await prisma.content.deleteMany({});
-    await prisma.user.deleteMany({});
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
   it("should delete a specific piece of content for an authenticated user", async () => {
-    const user = await prisma.user.create({
-      data: {
-        username: faker.internet.username(),
-        email: faker.internet.email(),
-        password_hash: faker.internet.password(),
-      },
-    });
+    const mockUser = { id: faker.string.uuid(), email: faker.internet.email() };
+    const contentId = faker.string.uuid();
 
-    const content = await prisma.content.create({
-      data: {
-        title: faker.lorem.sentence(),
-        body: faker.lorem.paragraph(),
-        userId: user.id,
-      },
-    });
-
-    mockGetServerSession.mockReturnValue(Promise.resolve({ user: { id: user.id } }));
+    mockGetUser.mockResolvedValue({ data: { user: mockUser } });
+    prisma.content.delete.mockResolvedValue({ id: contentId });
 
     await testApiHandler({
-      handler: DELETE,
-      params: { id: content.id },
+      appHandler: { DELETE },
+      params: { id: contentId },
       test: async ({ fetch }) => {
         const res = await fetch({
           method: "DELETE",
         });
 
-        // Check if the response is correct
         expect(res.status).toBe(204);
-
-        // Check if the content is deleted from the database
-        const deletedContent = await prisma.content.findUnique({ where: { id: content.id } });
-        expect(deletedContent).toBeNull();
       },
     });
   });

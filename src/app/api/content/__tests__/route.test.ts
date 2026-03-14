@@ -1,7 +1,6 @@
 import { testApiHandler } from "next-test-api-route-handler";
 import { POST, GET } from "../route";
 import { faker } from "@faker-js/faker";
-import { getServerSession } from "next-auth";
 
 // Mock Prisma client
 jest.mock("@/lib/prisma", () => ({
@@ -19,14 +18,20 @@ jest.mock("@/lib/prisma", () => ({
     delete: jest.fn(),
     deleteMany: jest.fn(),
   },
-  $transaction: jest.fn((fn) => fn()),
+  $transaction: jest.fn((fn: (arg: unknown) => unknown) => fn({})),
 }));
 
 const prisma = require("@/lib/prisma");
 
-// Mock the getServerSession function
-jest.mock("next-auth");
-const mockGetServerSession = getServerSession as jest.Mock;
+// Mock Supabase server client
+const mockGetUser = jest.fn();
+jest.mock("@/lib/supabase/server", () => ({
+  createClient: jest.fn(() => ({
+    auth: {
+      getUser: mockGetUser,
+    },
+  })),
+}));
 
 describe("POST /api/content", () => {
   beforeEach(() => {
@@ -36,31 +41,26 @@ describe("POST /api/content", () => {
   it("should create a new piece of content for an authenticated user", async () => {
     const mockUser = {
       id: faker.string.uuid(),
-      username: faker.internet.username(),
       email: faker.internet.email(),
-      password_hash: "hashed_password",
-      created_at: new Date(),
-      updated_at: new Date(),
     };
-
-    const mockContent = {
-      id: faker.string.uuid(),
-      user_id: mockUser.id,
-      title: faker.lorem.sentence(),
-      body: faker.lorem.paragraph(),
-      created_at: new Date(),
-      updated_at: new Date(),
-    };
-
-    prisma.user.create.mockResolvedValue(mockUser);
-    prisma.content.create.mockResolvedValue(mockContent);
-    mockGetServerSession.mockReturnValue(Promise.resolve({ user: { id: mockUser.id } }));
 
     const title = faker.lorem.sentence();
     const body = faker.lorem.paragraph();
 
+    const mockContent = {
+      id: faker.string.uuid(),
+      userId: mockUser.id,
+      title,
+      body,
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
+
+    mockGetUser.mockResolvedValue({ data: { user: mockUser } });
+    prisma.content.create.mockResolvedValue(mockContent);
+
     await testApiHandler({
-      appHandler: POST,
+      appHandler: { POST },
       test: async ({ fetch }) => {
         const res = await fetch({
           method: "POST",
@@ -71,24 +71,25 @@ describe("POST /api/content", () => {
         });
         const json = await res.json();
 
-        // Check if the response is correct
         expect(res.status).toBe(200);
         expect(json).toHaveProperty("id");
-        expect(json.title).toBe(title);
-        expect(json.body).toBe(body);
 
-        // Check if the content is created in the database
-        const content = await prisma.content.findUnique({ where: { id: json.id } });
-        expect(content).not.toBeNull();
+        expect(prisma.content.create).toHaveBeenCalledWith({
+          data: {
+            title,
+            body,
+            userId: mockUser.id,
+          },
+        });
       },
     });
   });
 
   it("should return an error if the user is not authenticated", async () => {
-    mockGetServerSession.mockReturnValue(Promise.resolve(null));
+    mockGetUser.mockResolvedValue({ data: { user: null } });
 
     await testApiHandler({
-      handler: POST,
+      appHandler: { POST },
       test: async ({ fetch }) => {
         const res = await fetch({
           method: "POST",
@@ -98,7 +99,6 @@ describe("POST /api/content", () => {
           body: JSON.stringify({ title: "test", body: "test" }),
         });
 
-        // Check if the response is correct
         expect(res.status).toBe(401);
       },
     });
@@ -106,38 +106,36 @@ describe("POST /api/content", () => {
 });
 
 describe("GET /api/content", () => {
-  beforeEach(async () => {
-    // Reset the database before each test
-    await prisma.content.deleteMany({});
-    await prisma.user.deleteMany({});
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
   it("should return a list of content for an authenticated user", async () => {
-    const user = await prisma.user.create({
-      data: {
-        username: faker.internet.username(),
-        email: faker.internet.email(),
-        password_hash: faker.internet.password(),
-      },
-    });
+    const mockUser = {
+      id: faker.string.uuid(),
+      email: faker.internet.email(),
+    };
 
-    await prisma.content.create({
-      data: {
+    const mockContents = [
+      {
+        id: faker.string.uuid(),
+        userId: mockUser.id,
         title: faker.lorem.sentence(),
         body: faker.lorem.paragraph(),
-        userId: user.id,
+        created_at: new Date(),
+        updated_at: new Date(),
       },
-    });
+    ];
 
-    mockGetServerSession.mockReturnValue(Promise.resolve({ user: { id: user.id } }));
+    mockGetUser.mockResolvedValue({ data: { user: mockUser } });
+    prisma.content.findMany.mockResolvedValue(mockContents);
 
     await testApiHandler({
-      appHandler: GET,
+      appHandler: { GET },
       test: async ({ fetch }) => {
         const res = await fetch();
         const json = await res.json();
 
-        // Check if the response is correct
         expect(res.status).toBe(200);
         expect(json.length).toBe(1);
       },
@@ -145,23 +143,20 @@ describe("GET /api/content", () => {
   });
 
   it("should return an empty list if the user has no content", async () => {
-    const user = await prisma.user.create({
-      data: {
-        username: faker.internet.username(),
-        email: faker.internet.email(),
-        password_hash: faker.internet.password(),
-      },
-    });
+    const mockUser = {
+      id: faker.string.uuid(),
+      email: faker.internet.email(),
+    };
 
-    mockGetServerSession.mockReturnValue(Promise.resolve({ user: { id: user.id } }));
+    mockGetUser.mockResolvedValue({ data: { user: mockUser } });
+    prisma.content.findMany.mockResolvedValue([]);
 
     await testApiHandler({
-      appHandler: GET,
+      appHandler: { GET },
       test: async ({ fetch }) => {
         const res = await fetch();
         const json = await res.json();
 
-        // Check if the response is correct
         expect(res.status).toBe(200);
         expect(json.length).toBe(0);
       },
@@ -169,14 +164,13 @@ describe("GET /api/content", () => {
   });
 
   it("should return an error if the user is not authenticated", async () => {
-    mockGetServerSession.mockReturnValue(Promise.resolve(null));
+    mockGetUser.mockResolvedValue({ data: { user: null } });
 
     await testApiHandler({
-      appHandler: GET,
+      appHandler: { GET },
       test: async ({ fetch }) => {
         const res = await fetch();
 
-        // Check if the response is correct
         expect(res.status).toBe(401);
       },
     });

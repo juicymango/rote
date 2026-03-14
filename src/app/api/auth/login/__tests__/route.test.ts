@@ -1,4 +1,3 @@
-import { describe, it, expect, beforeEach, jest } from "@jest/globals";
 import { faker } from "@faker-js/faker";
 
 // Mock dependencies

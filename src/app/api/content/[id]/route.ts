@@ -1,22 +1,26 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
   try {
+    const { id } = await params;
     const content = await prisma.content.findUnique({
       where: {
-        id: params.id,
-        userId: session.user.id,
+        id,
+        userId: user.id,
       },
     });
     return NextResponse.json(content);
@@ -28,19 +32,24 @@ export async function GET(
 
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
   try {
+    const { id } = await params;
     const { title, body } = await req.json();
     const content = await prisma.content.update({
       where: {
-        id: params.id,
-        userId: session.user.id,
+        id,
+        userId: user.id,
       },
       data: {
         title,
@@ -56,18 +65,23 @@ export async function PUT(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
   try {
+    const { id } = await params;
     await prisma.content.delete({
       where: {
-        id: params.id,
-        userId: session.user.id,
+        id,
+        userId: user.id,
       },
     });
     return new NextResponse(null, { status: 204 });

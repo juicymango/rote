@@ -2,23 +2,22 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 
 // Mock next/navigation redirect
-const mockRedirect = jest.fn();
 jest.mock("next/navigation", () => ({
-  redirect: mockRedirect,
+  redirect: jest.fn(),
 }));
 
 // Mock Supabase server client
-const mockGetUser = jest.fn();
 jest.mock("@/lib/supabase/server", () => ({
-  createClient: jest.fn(() =>
-    Promise.resolve({
-      auth: { getUser: mockGetUser },
-    })
-  ),
+  createClient: jest.fn(),
 }));
 
 // Import after mocks
 import WelcomePage from "../page";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+
+const mockRedirect = jest.mocked(redirect);
+const mockCreateClient = jest.mocked(createClient);
 
 describe("WelcomePage", () => {
   beforeEach(() => {
@@ -26,7 +25,10 @@ describe("WelcomePage", () => {
   });
 
   it("redirects to /auth/login when user is not authenticated", async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } });
+    const mockGetUser = jest.fn().mockResolvedValue({ data: { user: null } });
+    mockCreateClient.mockResolvedValue({
+      auth: { getUser: mockGetUser },
+    } as never);
 
     await WelcomePage();
 
@@ -34,9 +36,12 @@ describe("WelcomePage", () => {
   });
 
   it("renders welcome message with user email when authenticated", async () => {
-    mockGetUser.mockResolvedValue({
+    const mockGetUser = jest.fn().mockResolvedValue({
       data: { user: { id: "user-123", email: "test@example.com" } },
     });
+    mockCreateClient.mockResolvedValue({
+      auth: { getUser: mockGetUser },
+    } as never);
 
     const component = await WelcomePage();
     render(component as React.ReactElement);
@@ -46,9 +51,12 @@ describe("WelcomePage", () => {
   });
 
   it("renders sign out button when authenticated", async () => {
-    mockGetUser.mockResolvedValue({
+    const mockGetUser = jest.fn().mockResolvedValue({
       data: { user: { id: "user-123", email: "user@example.com" } },
     });
+    mockCreateClient.mockResolvedValue({
+      auth: { getUser: mockGetUser },
+    } as never);
 
     const component = await WelcomePage();
     render(component as React.ReactElement);

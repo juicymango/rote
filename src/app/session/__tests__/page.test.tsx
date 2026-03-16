@@ -70,7 +70,7 @@ describe("SessionPage", () => {
     });
   });
 
-  it("shows Remembered and Forgot buttons immediately without any flip", async () => {
+  it("shows only Show Answer button initially (no Remembered/Forgot)", async () => {
     const cards = [makeCard("1")];
     mockFetch.mockResolvedValue({
       ok: true,
@@ -79,14 +79,16 @@ describe("SessionPage", () => {
     render(<SessionPage />);
     await waitFor(() => screen.getByText("Key 1"));
 
-    // Buttons should be visible immediately — no click needed
-    expect(screen.getByRole("button", { name: /remembered/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /forgot/i })).toBeInTheDocument();
+    // Only Show Answer button should be visible
+    expect(screen.getByRole("button", { name: /show answer/i })).toBeInTheDocument();
+    // Remembered and Forgot buttons should NOT be visible yet
+    expect(screen.queryByRole("button", { name: /remembered/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /forgot/i })).not.toBeInTheDocument();
     // Value should NOT be visible yet
     expect(screen.queryByTestId("markdown")).not.toBeInTheDocument();
   });
 
-  it("Forgot reveals value and shows Next button", async () => {
+  it("Show Answer reveals value and Remembered/Forgot buttons", async () => {
     const cards = [makeCard("1")];
     mockFetch.mockResolvedValue({
       ok: true,
@@ -95,18 +97,18 @@ describe("SessionPage", () => {
     render(<SessionPage />);
     await waitFor(() => screen.getByText("Key 1"));
 
-    fireEvent.click(screen.getByRole("button", { name: /forgot/i }));
+    fireEvent.click(screen.getByRole("button", { name: /show answer/i }));
 
     // Value revealed
     expect(screen.getByTestId("markdown")).toBeInTheDocument();
-    // Next button appears
-    expect(screen.getByRole("button", { name: /^next$/i })).toBeInTheDocument();
-    // Remembered and Forgot buttons are gone
-    expect(screen.queryByRole("button", { name: /remembered/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^forgot$/i })).not.toBeInTheDocument();
+    // Remembered and Forgot buttons appear
+    expect(screen.getByRole("button", { name: /remembered/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /forgot/i })).toBeInTheDocument();
+    // Show Answer button is gone
+    expect(screen.queryByRole("button", { name: /show answer/i })).not.toBeInTheDocument();
   });
 
-  it("Next button after Forgot advances to next card and hides value", async () => {
+  it("Forgot button advances to next card immediately", async () => {
     const cards = [makeCard("1"), makeCard("2")];
     mockFetch.mockResolvedValue({
       ok: true,
@@ -120,19 +122,19 @@ describe("SessionPage", () => {
       expect(hasCard).toBe(true);
     });
 
-    // Forgot on first card
-    fireEvent.click(screen.getByRole("button", { name: /forgot/i }));
+    // Show Answer
+    fireEvent.click(screen.getByRole("button", { name: /show answer/i }));
     expect(screen.getByTestId("markdown")).toBeInTheDocument();
 
-    // Click Next — should advance and hide value
+    // Forgot on first card — should advance immediately
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /^next$/i }));
+      fireEvent.click(screen.getByRole("button", { name: /forgot/i }));
     });
 
-    // Forgot/Remembered buttons should be back (not Next)
+    // Should be back to unrevealed state (Show Answer button visible, value hidden)
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /remembered/i })).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: /^next$/i })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /show answer/i })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /remembered/i })).not.toBeInTheDocument();
       expect(screen.queryByTestId("markdown")).not.toBeInTheDocument();
     });
   });
@@ -150,6 +152,12 @@ describe("SessionPage", () => {
     await waitFor(() => screen.getByText("Key 1"));
 
     for (let i = 0; i < 3; i++) {
+      // Click Show Answer
+      await waitFor(() => screen.getByRole("button", { name: /show answer/i }));
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /show answer/i }));
+      });
+      // Click Remembered
       await waitFor(() => screen.getByRole("button", { name: /remembered/i }));
       await act(async () => {
         fireEvent.click(screen.getByRole("button", { name: /remembered/i }));
@@ -161,7 +169,7 @@ describe("SessionPage", () => {
     });
   });
 
-  it("resets consecutive count on forgot", async () => {
+  it("resets consecutive count on forgot and advances to next card", async () => {
     const cards = [makeCard("1"), makeCard("2")];
     mockFetch.mockResolvedValue({
       ok: true,
@@ -175,14 +183,16 @@ describe("SessionPage", () => {
       expect(hasCard).toBe(true);
     });
 
-    // Click Forgot and then Next
-    fireEvent.click(screen.getByRole("button", { name: /forgot/i }));
+    // Show Answer
+    fireEvent.click(screen.getByRole("button", { name: /show answer/i }));
+    // Click Forgot - should advance immediately
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /^next$/i }));
+      fireEvent.click(screen.getByRole("button", { name: /forgot/i }));
     });
 
-    // Card pool should still have both cards
+    // Should be back to unrevealed state with a different card
     await waitFor(() => {
+      expect(screen.getByRole("button", { name: /show answer/i })).toBeInTheDocument();
       expect(screen.getByText(/remaining/i)).toBeInTheDocument();
     });
   });

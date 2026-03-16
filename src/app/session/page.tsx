@@ -34,7 +34,7 @@ export default function SessionPage() {
   const [pending, setPending] = useState<Item[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [prevId, setPrevId] = useState<string | null>(null);
-  const [forgotRevealed, setForgotRevealed] = useState(false);
+  const [answerRevealed, setAnswerRevealed] = useState(false);
   // consecutive correct count within this session per card id
   const [sessionCorrect, setSessionCorrect] = useState<Map<string, number>>(new Map());
   // final outcome per card for persisting at session end
@@ -98,7 +98,11 @@ export default function SessionPage() {
     setPending(newPending);
     setPrevId(cardId);
     setCurrentIndex(nextIndex);
-    setForgotRevealed(false);
+    setAnswerRevealed(false);
+  }
+
+  function handleShowAnswer() {
+    setAnswerRevealed(true);
   }
 
   function handleRemembered() {
@@ -154,14 +158,8 @@ export default function SessionPage() {
     });
     setResults(newResults);
 
-    // Reveal value; wait for user to click Next before advancing
-    setForgotRevealed(true);
-  }
-
-  function handleNext() {
-    if (pool.length === 0) return;
-    const card = pool[currentIndex];
-    advanceCard([...pool], [...pending], results, card.id, false);
+    // Advance to next card immediately (no Next button needed)
+    advanceCard([...pool], [...pending], newResults, card.id, false);
   }
 
   if (phase === "loading") {
@@ -231,35 +229,37 @@ export default function SessionPage() {
         {/* Card */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 mb-6">
           <p className="text-xl font-semibold text-gray-900 mb-4">{card.key}</p>
-          {forgotRevealed && (
-            <div className="prose prose-sm max-w-none text-left border-t border-gray-100 pt-4">
-              <ReactMarkdown>{card.value}</ReactMarkdown>
-            </div>
+          {answerRevealed && (
+            <>
+              {/* Action buttons above the value */}
+              <div className="flex gap-4 mb-4">
+                <button
+                  onClick={handleForgot}
+                  className="flex-1 py-3 bg-red-50 text-red-700 border border-red-200 rounded-md hover:bg-red-100 font-medium min-h-11"
+                >
+                  Forgot
+                </button>
+                <button
+                  onClick={handleRemembered}
+                  className="flex-1 py-3 bg-green-50 text-green-700 border border-green-200 rounded-md hover:bg-green-100 font-medium min-h-11"
+                >
+                  Remembered
+                </button>
+              </div>
+              <div className="prose prose-sm max-w-none text-left border-t border-gray-100 pt-4">
+                <ReactMarkdown>{card.value}</ReactMarkdown>
+              </div>
+            </>
           )}
         </div>
 
-        {forgotRevealed ? (
+        {!answerRevealed && (
           <button
-            onClick={handleNext}
-            className="w-full py-3 bg-gray-100 text-gray-700 border border-gray-200 rounded-md hover:bg-gray-200 font-medium min-h-11"
+            onClick={handleShowAnswer}
+            className="w-full py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 font-medium min-h-11"
           >
-            Next
+            Show Answer
           </button>
-        ) : (
-          <div className="flex gap-4">
-            <button
-              onClick={handleForgot}
-              className="flex-1 py-3 bg-red-50 text-red-700 border border-red-200 rounded-md hover:bg-red-100 font-medium min-h-11"
-            >
-              Forgot
-            </button>
-            <button
-              onClick={handleRemembered}
-              className="flex-1 py-3 bg-green-50 text-green-700 border border-green-200 rounded-md hover:bg-green-100 font-medium min-h-11"
-            >
-              Remembered
-            </button>
-          </div>
         )}
       </div>
     </div>

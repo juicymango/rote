@@ -11,10 +11,10 @@ jest.mock("@/lib/supabase/server", () => ({
 
 jest.mock("@/components/items/ItemRow", () => ({
   __esModule: true,
-  default: ({ itemKey, valuePreview }: { itemKey: string; valuePreview: string }) => (
+  default: ({ itemKey, value }: { itemKey: string; value: string }) => (
     <div data-testid="item-row">
       <span>{itemKey}</span>
-      <span>{valuePreview}</span>
+      <span>{value}</span>
     </div>
   ),
 }));
@@ -54,8 +54,8 @@ describe("ItemsPage", () => {
 
   it("renders item list when authenticated", async () => {
     const items = [
-      { id: "1", key: "Question 1", value: "Answer 1", created_at: "2026-03-01" },
-      { id: "2", key: "Question 2", value: "Answer 2", created_at: "2026-03-02" },
+      { id: "1", key: "Question 1", value: "Answer 1", created_at: "2026-03-01T00:00:00Z", next_review_at: "2026-03-01", interval_days: 1, consecutive_correct: 0 },
+      { id: "2", key: "Question 2", value: "Answer 2", created_at: "2026-03-02T00:00:00Z", next_review_at: "2026-03-02", interval_days: 2, consecutive_correct: 1 },
     ];
     mockCreateClient.mockResolvedValue(
       makeSupabaseMock({ id: "user-1" }, items) as never

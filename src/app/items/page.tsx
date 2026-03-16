@@ -62,7 +62,11 @@ export default async function ItemsPage() {
                 key={item.id}
                 id={item.id}
                 itemKey={item.key}
-                valuePreview={item.value.slice(0, 80)}
+                value={item.value}
+                createdAt={item.created_at}
+                nextReviewAt={item.next_review_at}
+                intervalDays={item.interval_days}
+                consecutiveCorrect={item.consecutive_correct}
               />
             ))
           )}

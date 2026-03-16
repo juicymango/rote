@@ -60,28 +60,30 @@ export async function POST(request: Request) {
     }
   }
 
-  const ops: Promise<unknown>[] = [];
+  const ops: Promise<void>[] = [];
 
   if (toInsert.length > 0) {
     ops.push(
-      supabase
-        .from("items")
-        .insert(toInsert, { count: "exact" })
-        .then(({ error }) => {
-          if (error) throw error;
-        })
+      Promise.resolve(
+        supabase
+          .from("items")
+          .insert(toInsert, { count: "exact" })
+      ).then(({ error }) => {
+        if (error) throw error;
+      })
     );
   }
 
   for (const upd of toUpdate) {
     ops.push(
-      supabase
-        .from("items")
-        .update({ value: upd.value })
-        .eq("id", upd.id)
-        .then(({ error }) => {
-          if (error) throw error;
-        })
+      Promise.resolve(
+        supabase
+          .from("items")
+          .update({ value: upd.value })
+          .eq("id", upd.id)
+      ).then(({ error }) => {
+        if (error) throw error;
+      })
     );
   }
 

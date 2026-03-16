@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { mergeValues } from "@/lib/items/mergeValues";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -17,7 +18,7 @@ export async function POST(request: Request) {
     });
   }
 
-  const rows: { key: string; value: string; user_id: string }[] = [];
+  const incoming: { key: string; value: string }[] = [];
   for (const item of items) {
     const key = (
       (item as Record<string, unknown>)?.key as string ?? ""
@@ -31,13 +32,68 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    rows.push({ key, value, user_id: user.id });
+    incoming.push({ key, value });
   }
 
-  const { error, count } = await supabase
+  // Fetch existing items for this user to detect duplicates
+  const { data: existingItems, error: fetchError } = await supabase
     .from("items")
-    .insert(rows, { count: "exact" });
+    .select("id, key, value")
+    .eq("user_id", user.id);
 
-  if (error) return new NextResponse(error.message, { status: 500 });
-  return NextResponse.json({ count }, { status: 201 });
+  if (fetchError) return new NextResponse(fetchError.message, { status: 500 });
+
+  const existingMap = new Map<string, { id: string; value: string }>();
+  for (const existing of existingItems ?? []) {
+    existingMap.set(existing.key, { id: existing.id, value: existing.value });
+  }
+
+  const toInsert: { key: string; value: string; user_id: string }[] = [];
+  const toUpdate: { id: string; value: string }[] = [];
+
+  for (const item of incoming) {
+    const found = existingMap.get(item.key);
+    if (found) {
+      toUpdate.push({ id: found.id, value: mergeValues(item.value, found.value) });
+    } else {
+      toInsert.push({ key: item.key, value: item.value, user_id: user.id });
+    }
+  }
+
+  const ops: Promise<unknown>[] = [];
+
+  if (toInsert.length > 0) {
+    ops.push(
+      supabase
+        .from("items")
+        .insert(toInsert, { count: "exact" })
+        .then(({ error }) => {
+          if (error) throw error;
+        })
+    );
+  }
+
+  for (const upd of toUpdate) {
+    ops.push(
+      supabase
+        .from("items")
+        .update({ value: upd.value })
+        .eq("id", upd.id)
+        .then(({ error }) => {
+          if (error) throw error;
+        })
+    );
+  }
+
+  try {
+    await Promise.all(ops);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "database error";
+    return new NextResponse(msg, { status: 500 });
+  }
+
+  return NextResponse.json(
+    { count: toInsert.length + toUpdate.length },
+    { status: 201 }
+  );
 }

@@ -36,6 +36,7 @@ import SessionPage from "../page";
 describe("SessionPage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockFetch.mockReset();
   });
 
   it("shows loading state initially", () => {
@@ -218,5 +219,110 @@ describe("SessionPage", () => {
     await waitFor(() => {
       expect(screen.getByText(/session complete/i)).toBeInTheDocument();
     });
+  });
+
+  it("shows Edit value button when answer is revealed", async () => {
+    const cards = [makeCard("1")];
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => cards,
+    } as Response);
+    render(<SessionPage />);
+    await waitFor(() => screen.getByText("Key 1"));
+
+    // Show Answer
+    fireEvent.click(screen.getByRole("button", { name: /show answer/i }));
+
+    // Edit value button should appear
+    expect(screen.getByRole("button", { name: /edit value/i })).toBeInTheDocument();
+  });
+
+  it("enables inline editing of card value", async () => {
+    const cards = [makeCard("1")];
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => cards,
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ ...cards[0], value: "Updated value" }),
+      } as Response);
+
+    render(<SessionPage />);
+    await waitFor(() => screen.getByText("Key 1"));
+
+    // Show Answer
+    fireEvent.click(screen.getByRole("button", { name: /show answer/i }));
+    fireEvent.click(screen.getByRole("button", { name: /edit value/i }));
+
+    // Should show textarea with current value
+    const textarea = screen.getByRole("textbox");
+    expect(textarea).toHaveValue("Value 1");
+
+    // Edit the value
+    fireEvent.change(textarea, { target: { value: "Updated value" } });
+    expect(textarea).toHaveValue("Updated value");
+
+    // Save
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/items/1",
+        expect.objectContaining({
+          method: "PUT",
+          body: JSON.stringify({ key: "Key 1", value: "Updated value" }),
+        })
+      );
+      // Should exit edit mode
+      expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    });
+  });
+
+  it("can cancel editing without saving", async () => {
+    const cards = [makeCard("1")];
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => cards,
+    } as Response);
+
+    render(<SessionPage />);
+    await waitFor(() => screen.getByText("Key 1"));
+
+    // Show Answer and start editing
+    fireEvent.click(screen.getByRole("button", { name: /show answer/i }));
+    fireEvent.click(screen.getByRole("button", { name: /edit value/i }));
+
+    const textarea = screen.getByRole("textbox");
+    fireEvent.change(textarea, { target: { value: "Changed but cancelled" } });
+
+    // Cancel
+    fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
+
+    // Should exit edit mode without saving
+    await waitFor(() => {
+      expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+      expect(screen.getByTestId("markdown")).toHaveTextContent("Value 1");
+    });
+  });
+
+  it("disables Remembered/Forgot buttons while editing", async () => {
+    const cards = [makeCard("1")];
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => cards,
+    } as Response);
+
+    render(<SessionPage />);
+    await waitFor(() => screen.getByText("Key 1"));
+
+    // Show Answer and start editing
+    fireEvent.click(screen.getByRole("button", { name: /show answer/i }));
+    fireEvent.click(screen.getByRole("button", { name: /edit value/i }));
+
+    // Remembered and Forgot buttons should be disabled
+    expect(screen.getByRole("button", { name: /remembered/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /forgot/i })).toBeDisabled();
   });
 });

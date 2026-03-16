@@ -35,6 +35,9 @@ export default function SessionPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [prevId, setPrevId] = useState<string | null>(null);
   const [answerRevealed, setAnswerRevealed] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editedValue, setEditedValue] = useState("");
+  const [saving, setSaving] = useState(false);
   // consecutive correct count within this session per card id
   const [sessionCorrect, setSessionCorrect] = useState<Map<string, number>>(new Map());
   // final outcome per card for persisting at session end
@@ -99,10 +102,47 @@ export default function SessionPage() {
     setPrevId(cardId);
     setCurrentIndex(nextIndex);
     setAnswerRevealed(false);
+    setEditing(false);
   }
 
   function handleShowAnswer() {
     setAnswerRevealed(true);
+  }
+
+  function handleEdit() {
+    if (pool.length === 0) return;
+    const card = pool[currentIndex];
+    setEditedValue(card.value);
+    setEditing(true);
+  }
+
+  function handleCancelEdit() {
+    setEditing(false);
+    setEditedValue("");
+  }
+
+  async function handleSaveEdit() {
+    if (pool.length === 0) return;
+    const card = pool[currentIndex];
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/items/${card.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: card.key, value: editedValue }),
+      });
+      if (!res.ok) {
+        alert("Failed to save changes");
+        return;
+      }
+      // Update the local pool with the new value
+      const newPool = [...pool];
+      newPool[currentIndex] = { ...card, value: editedValue };
+      setPool(newPool);
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
   }
 
   function handleRemembered() {
@@ -235,19 +275,58 @@ export default function SessionPage() {
               <div className="flex gap-4 mb-4">
                 <button
                   onClick={handleForgot}
-                  className="flex-1 py-3 bg-red-50 text-red-700 border border-red-200 rounded-md hover:bg-red-100 font-medium min-h-11"
+                  disabled={editing}
+                  className="flex-1 py-3 bg-red-50 text-red-700 border border-red-200 rounded-md hover:bg-red-100 font-medium min-h-11 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Forgot
                 </button>
                 <button
                   onClick={handleRemembered}
-                  className="flex-1 py-3 bg-green-50 text-green-700 border border-green-200 rounded-md hover:bg-green-100 font-medium min-h-11"
+                  disabled={editing}
+                  className="flex-1 py-3 bg-green-50 text-green-700 border border-green-200 rounded-md hover:bg-green-100 font-medium min-h-11 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Remembered
                 </button>
               </div>
-              <div className="prose prose-sm max-w-none text-left border-t border-gray-100 pt-4">
-                <ReactMarkdown>{card.value}</ReactMarkdown>
+              <div className="border-t border-gray-100 pt-4">
+                {editing ? (
+                  <div className="space-y-3">
+                    <textarea
+                      value={editedValue}
+                      onChange={(e) => setEditedValue(e.target.value)}
+                      rows={8}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleSaveEdit}
+                        disabled={saving}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 font-medium disabled:opacity-50"
+                      >
+                        {saving ? "Saving..." : "Save"}
+                      </button>
+                      <button
+                        onClick={handleCancelEdit}
+                        disabled={saving}
+                        className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="prose prose-sm max-w-none text-left mb-3">
+                      <ReactMarkdown>{card.value}</ReactMarkdown>
+                    </div>
+                    <button
+                      onClick={handleEdit}
+                      className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                    >
+                      Edit value
+                    </button>
+                  </>
+                )}
               </div>
             </>
           )}

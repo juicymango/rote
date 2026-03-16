@@ -34,7 +34,7 @@ export default function SessionPage() {
   const [pending, setPending] = useState<Item[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [prevId, setPrevId] = useState<string | null>(null);
-  const [flipped, setFlipped] = useState(false);
+  const [forgotRevealed, setForgotRevealed] = useState(false);
   // consecutive correct count within this session per card id
   const [sessionCorrect, setSessionCorrect] = useState<Map<string, number>>(new Map());
   // final outcome per card for persisting at session end
@@ -80,36 +80,52 @@ export default function SessionPage() {
     []
   );
 
-  function handleAnswer(outcome: CardOutcome) {
+  function advanceCard(
+    newPool: Item[],
+    newPending: Item[],
+    newResults: Map<string, ResultEntry>,
+    cardId: string,
+    graduated: boolean
+  ) {
+    if (newPool.length === 0) {
+      setPool(newPool);
+      setPending(newPending);
+      finishSession(newResults);
+      return;
+    }
+    const nextIndex = pickNext(newPool, graduated ? null : cardId);
+    setPool(newPool);
+    setPending(newPending);
+    setPrevId(cardId);
+    setCurrentIndex(nextIndex);
+    setForgotRevealed(false);
+  }
+
+  function handleRemembered() {
     if (pool.length === 0) return;
     const card = pool[currentIndex];
 
-    // Update session correct count
     const newCorrect = new Map(sessionCorrect);
     const prev = newCorrect.get(card.id) ?? 0;
-    const nextCorrect = outcome === "remembered" ? prev + 1 : 0;
+    const nextCorrect = prev + 1;
     newCorrect.set(card.id, nextCorrect);
     setSessionCorrect(newCorrect);
 
-    // Update results map (last outcome wins)
     const newResults = new Map(results);
     newResults.set(card.id, {
       id: card.id,
-      outcome,
+      outcome: "remembered",
       interval_days: card.interval_days,
       consecutive_correct: card.consecutive_correct,
     });
     setResults(newResults);
 
-    // Check graduation
     let newPool = [...pool];
     let newPending = [...pending];
     let graduated = false;
 
-    if (outcome === "remembered" && nextCorrect >= GRADUATION_COUNT) {
-      // Graduate this card
+    if (nextCorrect >= GRADUATION_COUNT) {
       newPool = pool.filter((_, i) => i !== currentIndex);
-      // Promote next pending card if available
       if (newPending.length > 0) {
         const [next, ...rest] = newPending;
         newPool = [...newPool, next];
@@ -118,24 +134,34 @@ export default function SessionPage() {
       graduated = true;
     }
 
-    if (newPool.length === 0) {
-      setPool(newPool);
-      setPending(newPending);
-      finishSession(newResults);
-      return;
-    }
+    advanceCard(newPool, newPending, newResults, card.id, graduated);
+  }
 
-    // Pick next card
-    const nextIndex = pickNext(
-      newPool,
-      graduated ? null : card.id
-    );
+  function handleForgot() {
+    if (pool.length === 0) return;
+    const card = pool[currentIndex];
 
-    setPool(newPool);
-    setPending(newPending);
-    setPrevId(card.id);
-    setCurrentIndex(nextIndex);
-    setFlipped(false);
+    const newCorrect = new Map(sessionCorrect);
+    newCorrect.set(card.id, 0);
+    setSessionCorrect(newCorrect);
+
+    const newResults = new Map(results);
+    newResults.set(card.id, {
+      id: card.id,
+      outcome: "forgot",
+      interval_days: card.interval_days,
+      consecutive_correct: card.consecutive_correct,
+    });
+    setResults(newResults);
+
+    // Reveal value; wait for user to click Next before advancing
+    setForgotRevealed(true);
+  }
+
+  function handleNext() {
+    if (pool.length === 0) return;
+    const card = pool[currentIndex];
+    advanceCard([...pool], [...pending], results, card.id, false);
   }
 
   if (phase === "loading") {
@@ -203,34 +229,32 @@ export default function SessionPage() {
         </div>
 
         {/* Card */}
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() => setFlipped(true)}
-          onKeyDown={(e) => e.key === "Enter" && setFlipped(true)}
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 mb-6 cursor-pointer min-h-11 text-center"
-          aria-label="flip card"
-        >
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 mb-6">
           <p className="text-xl font-semibold text-gray-900 mb-4">{card.key}</p>
-          {flipped ? (
+          {forgotRevealed && (
             <div className="prose prose-sm max-w-none text-left border-t border-gray-100 pt-4">
               <ReactMarkdown>{card.value}</ReactMarkdown>
             </div>
-          ) : (
-            <p className="text-gray-400 text-sm">Tap to reveal</p>
           )}
         </div>
 
-        {flipped && (
+        {forgotRevealed ? (
+          <button
+            onClick={handleNext}
+            className="w-full py-3 bg-gray-100 text-gray-700 border border-gray-200 rounded-md hover:bg-gray-200 font-medium min-h-11"
+          >
+            Next
+          </button>
+        ) : (
           <div className="flex gap-4">
             <button
-              onClick={() => handleAnswer("forgot")}
+              onClick={handleForgot}
               className="flex-1 py-3 bg-red-50 text-red-700 border border-red-200 rounded-md hover:bg-red-100 font-medium min-h-11"
             >
               Forgot
             </button>
             <button
-              onClick={() => handleAnswer("remembered")}
+              onClick={handleRemembered}
               className="flex-1 py-3 bg-green-50 text-green-700 border border-green-200 rounded-md hover:bg-green-100 font-medium min-h-11"
             >
               Remembered

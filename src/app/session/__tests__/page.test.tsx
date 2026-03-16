@@ -63,7 +63,6 @@ describe("SessionPage", () => {
     } as Response);
     render(<SessionPage />);
     await waitFor(() => {
-      // one of the card keys should be visible
       const hasCard =
         screen.queryByText("Key 1") !== null ||
         screen.queryByText("Key 2") !== null;
@@ -71,22 +70,7 @@ describe("SessionPage", () => {
     });
   });
 
-  it("flips card to reveal value on click", async () => {
-    const cards = [makeCard("1")];
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => cards,
-    } as Response);
-    render(<SessionPage />);
-    await waitFor(() => {
-      expect(screen.getByText("Key 1")).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: /flip card/i }));
-    expect(screen.getByTestId("markdown")).toBeInTheDocument();
-  });
-
-  it("shows Remembered and Forgot buttons after flip", async () => {
+  it("shows Remembered and Forgot buttons immediately without any flip", async () => {
     const cards = [makeCard("1")];
     mockFetch.mockResolvedValue({
       ok: true,
@@ -95,9 +79,62 @@ describe("SessionPage", () => {
     render(<SessionPage />);
     await waitFor(() => screen.getByText("Key 1"));
 
-    fireEvent.click(screen.getByRole("button", { name: /flip card/i }));
+    // Buttons should be visible immediately — no click needed
     expect(screen.getByRole("button", { name: /remembered/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /forgot/i })).toBeInTheDocument();
+    // Value should NOT be visible yet
+    expect(screen.queryByTestId("markdown")).not.toBeInTheDocument();
+  });
+
+  it("Forgot reveals value and shows Next button", async () => {
+    const cards = [makeCard("1")];
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => cards,
+    } as Response);
+    render(<SessionPage />);
+    await waitFor(() => screen.getByText("Key 1"));
+
+    fireEvent.click(screen.getByRole("button", { name: /forgot/i }));
+
+    // Value revealed
+    expect(screen.getByTestId("markdown")).toBeInTheDocument();
+    // Next button appears
+    expect(screen.getByRole("button", { name: /^next$/i })).toBeInTheDocument();
+    // Remembered and Forgot buttons are gone
+    expect(screen.queryByRole("button", { name: /remembered/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^forgot$/i })).not.toBeInTheDocument();
+  });
+
+  it("Next button after Forgot advances to next card and hides value", async () => {
+    const cards = [makeCard("1"), makeCard("2")];
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => cards,
+    } as Response);
+    render(<SessionPage />);
+    await waitFor(() => {
+      const hasCard =
+        screen.queryByText("Key 1") !== null ||
+        screen.queryByText("Key 2") !== null;
+      expect(hasCard).toBe(true);
+    });
+
+    // Forgot on first card
+    fireEvent.click(screen.getByRole("button", { name: /forgot/i }));
+    expect(screen.getByTestId("markdown")).toBeInTheDocument();
+
+    // Click Next — should advance and hide value
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^next$/i }));
+    });
+
+    // Forgot/Remembered buttons should be back (not Next)
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /remembered/i })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /^next$/i })).not.toBeInTheDocument();
+      expect(screen.queryByTestId("markdown")).not.toBeInTheDocument();
+    });
   });
 
   it("graduates card and shows complete after 3 consecutive remembered (single card)", async () => {
@@ -113,23 +150,18 @@ describe("SessionPage", () => {
     await waitFor(() => screen.getByText("Key 1"));
 
     for (let i = 0; i < 3; i++) {
-      // flip
-      fireEvent.click(screen.getByRole("button", { name: /flip card/i }));
       await waitFor(() => screen.getByRole("button", { name: /remembered/i }));
       await act(async () => {
         fireEvent.click(screen.getByRole("button", { name: /remembered/i }));
       });
-      // After 3rd remembered, session completes — check for completion screen
-      if (i === 2) {
-        await waitFor(() => {
-          expect(screen.getByText(/session complete/i)).toBeInTheDocument();
-        });
-      }
     }
+
+    await waitFor(() => {
+      expect(screen.getByText(/session complete/i)).toBeInTheDocument();
+    });
   });
 
   it("resets consecutive count on forgot", async () => {
-    // Two cards: answer "remembered" once then "forgot" — next iteration should show card again
     const cards = [makeCard("1"), makeCard("2")];
     mockFetch.mockResolvedValue({
       ok: true,
@@ -143,10 +175,11 @@ describe("SessionPage", () => {
       expect(hasCard).toBe(true);
     });
 
-    // flip and click forgot
-    fireEvent.click(screen.getByRole("button", { name: /flip card/i }));
-    await waitFor(() => screen.getByRole("button", { name: /forgot/i }));
+    // Click Forgot and then Next
     fireEvent.click(screen.getByRole("button", { name: /forgot/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^next$/i }));
+    });
 
     // Card pool should still have both cards
     await waitFor(() => {

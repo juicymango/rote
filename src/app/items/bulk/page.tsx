@@ -12,6 +12,7 @@ export default function BulkImportPage() {
   const [step, setStep] = useState<Step>("paste");
   const [markdown, setMarkdown] = useState("");
   const [parsed, setParsed] = useState<ParsedItem[]>([]);
+  const [checked, setChecked] = useState<boolean[]>([]);
   const [importedCount, setImportedCount] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -19,6 +20,7 @@ export default function BulkImportPage() {
   function handleParse() {
     const items = parseMarkdownToItems(markdown);
     setParsed(items);
+    setChecked(items.map(() => true)); // all checked by default
     setStep("review");
   }
 
@@ -26,10 +28,12 @@ export default function BulkImportPage() {
     setError("");
     setSubmitting(true);
     try {
+      // Filter out unchecked items
+      const selectedItems = parsed.filter((_, i) => checked[i]);
       const res = await fetch("/api/items/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: parsed }),
+        body: JSON.stringify({ items: selectedItems }),
       });
       if (!res.ok) {
         const msg = await res.text();
@@ -37,12 +41,18 @@ export default function BulkImportPage() {
         return;
       }
       const data = await res.json();
-      setImportedCount(data.count ?? parsed.length);
+      setImportedCount(data.count ?? selectedItems.length);
       setStep("done");
       router.refresh();
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function toggleChecked(index: number) {
+    const newChecked = [...checked];
+    newChecked[index] = !newChecked[index];
+    setChecked(newChecked);
   }
 
   if (step === "done") {
@@ -88,6 +98,7 @@ export default function BulkImportPage() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
+                    <th className="px-4 py-2 text-center font-medium text-gray-700 w-12">Import</th>
                     <th className="px-4 py-2 text-left font-medium text-gray-700 w-1/3">Key</th>
                     <th className="px-4 py-2 text-left font-medium text-gray-700">Value</th>
                   </tr>
@@ -95,6 +106,15 @@ export default function BulkImportPage() {
                 <tbody>
                   {parsed.map((item, i) => (
                     <tr key={i} className="border-b border-gray-100">
+                      <td className="px-4 py-2 text-center">
+                        <input
+                          type="checkbox"
+                          checked={checked[i] ?? false}
+                          onChange={() => toggleChecked(i)}
+                          className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                          aria-label={`Include ${item.key}`}
+                        />
+                      </td>
                       <td className="px-4 py-2 font-medium text-gray-900 truncate max-w-xs">
                         {item.key}
                       </td>

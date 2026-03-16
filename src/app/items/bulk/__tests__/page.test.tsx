@@ -74,4 +74,47 @@ describe("BulkImportPage", () => {
       expect(screen.getByText(/2 items? imported/i)).toBeInTheDocument();
     });
   });
+
+  it("renders checkboxes for each item, all checked by default", () => {
+    render(<BulkImportPage />);
+    fireEvent.change(screen.getByLabelText(/paste markdown/i), {
+      target: { value: "# Key One\nValue one.\n\n# Key Two\nValue two." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /parse/i }));
+
+    const checkbox1 = screen.getByLabelText("Include Key One");
+    const checkbox2 = screen.getByLabelText("Include Key Two");
+
+    expect(checkbox1).toBeInTheDocument();
+    expect(checkbox2).toBeInTheDocument();
+    expect(checkbox1).toBeChecked();
+    expect(checkbox2).toBeChecked();
+  });
+
+  it("can uncheck items to exclude them from import", async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ count: 1 }),
+    } as Response);
+
+    render(<BulkImportPage />);
+    fireEvent.change(screen.getByLabelText(/paste markdown/i), {
+      target: { value: "# Key One\nValue one.\n\n# Key Two\nValue two." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /parse/i }));
+
+    // Uncheck the second item
+    fireEvent.click(screen.getByLabelText("Include Key Two"));
+    expect(screen.getByLabelText("Include Key Two")).not.toBeChecked();
+
+    fireEvent.click(screen.getByRole("button", { name: /confirm import/i }));
+
+    await waitFor(() => {
+      const callArg = mockFetch.mock.calls[0][1];
+      const body = JSON.parse((callArg as RequestInit).body as string);
+      expect(body.items).toHaveLength(1);
+      expect(body.items[0].key).toBe("Key One");
+      expect(screen.getByText(/1 items? imported/i)).toBeInTheDocument();
+    });
+  });
 });

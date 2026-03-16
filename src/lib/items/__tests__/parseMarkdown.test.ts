@@ -47,4 +47,12 @@ describe("parseMarkdownToItems", () => {
     const items = parseMarkdownToItems(md);
     expect(items[0].value).toBe("Line one\nLine two\nLine three");
   });
+
+  it("ignores content before the first H1 heading", () => {
+    const md = `Preamble line one\nPreamble line two\n\n# Real Key\nReal value.`;
+    const items = parseMarkdownToItems(md);
+    expect(items).toHaveLength(1);
+    expect(items[0].key).toBe("Real Key");
+    expect(items[0].value).toBe("Real value.");
+  });
 });

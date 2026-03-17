@@ -5,16 +5,23 @@ import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import Link from "next/link";
 import { Item } from "@/lib/items/sessionPool";
-import { CardOutcome } from "@/lib/items/spacedRepetition";
+import { CardOutcome, computeIntervalUpdate } from "@/lib/items/spacedRepetition";
 
 interface ResultEntry {
   id: string;
   outcome: CardOutcome;
   interval_days: number;
   consecutive_correct: number;
+  next_review_at_override?: string;
 }
 
-type Phase = "loading" | "empty" | "review" | "complete";
+interface ReviewedToday {
+  id: string;
+  key: string;
+  outcome: "remembered" | "forgot";
+}
+
+type Phase = "loading" | "empty" | "review" | "confirm" | "complete";
 
 const GRADUATION_COUNT = 3;
 
@@ -42,6 +49,12 @@ export default function SessionPage() {
   const [sessionCorrect, setSessionCorrect] = useState<Map<string, number>>(new Map());
   // final outcome per card for persisting at session end
   const [results, setResults] = useState<Map<string, ResultEntry>>(new Map());
+  // today's reviewed list (fetched once on session start)
+  const [reviewedToday, setReviewedToday] = useState<ReviewedToday[]>([]);
+  // status panel visibility
+  const [showStatus, setShowStatus] = useState(false);
+  // confirmation screen: map of card id to next_review_at override
+  const [nextReviewOverrides, setNextReviewOverrides] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     async function loadSession() {
@@ -71,17 +84,33 @@ export default function SessionPage() {
   }, []);
 
   const finishSession = useCallback(
-    async (finalResults: Map<string, ResultEntry>) => {
-      setPhase("complete");
-      if (finalResults.size === 0) return;
-      await fetch("/api/session/complete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ results: Array.from(finalResults.values()) }),
-      });
+    (finalResults: Map<string, ResultEntry>) => {
+      if (finalResults.size === 0) {
+        setPhase("complete");
+        return;
+      }
+      // Show confirmation screen instead of completing immediately
+      setPhase("confirm");
     },
     []
   );
+
+  const confirmAndPersist = useCallback(async () => {
+    setPhase("complete");
+    if (results.size === 0) return;
+
+    // Apply overrides to results
+    const finalResults = Array.from(results.values()).map((entry) => {
+      const override = nextReviewOverrides.get(entry.id);
+      return override ? { ...entry, next_review_at_override: override } : entry;
+    });
+
+    await fetch("/api/session/complete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ results: finalResults }),
+    });
+  }, [results, nextReviewOverrides]);
 
   function advanceCard(
     newPool: Item[],
@@ -229,6 +258,84 @@ export default function SessionPage() {
     );
   }
 
+  if (phase === "confirm") {
+    const today = new Date();
+    const cardsToConfirm = Array.from(results.values()).map((entry) => {
+      const poolCard = [...pool, ...pending].find((c) => c.id === entry.id);
+      const algorithmDate = computeIntervalUpdate(
+        { interval_days: entry.interval_days, consecutive_correct: entry.consecutive_correct },
+        entry.outcome,
+        today
+      ).next_review_at;
+      const override = nextReviewOverrides.get(entry.id);
+
+      return {
+        id: entry.id,
+        key: poolCard?.key || "Unknown",
+        outcome: entry.outcome,
+        algorithmDate,
+        selectedDate: override || algorithmDate,
+      };
+    });
+
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-2xl mx-auto px-4 py-8">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Confirm Review Schedule</h1>
+          <p className="text-gray-600 mb-6">
+            Review the next review dates below. You can adjust individual cards or confirm to save.
+          </p>
+
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+            {cardsToConfirm.map((card) => (
+              <div key={card.id} className="p-4 border-b border-gray-200 last:border-b-0">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900">{card.key}</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Outcome: {card.outcome === "remembered" ? "Remembered" : "Forgot"}
+                    </p>
+                  </div>
+                  <div className="shrink-0">
+                    <label className="block text-xs text-gray-500 mb-1">Next review</label>
+                    <input
+                      type="date"
+                      value={card.selectedDate}
+                      onChange={(e) => {
+                        const newOverrides = new Map(nextReviewOverrides);
+                        newOverrides.set(card.id, e.target.value);
+                        setNextReviewOverrides(newOverrides);
+                      }}
+                      className="px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={confirmAndPersist}
+              className="flex-1 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 font-medium"
+            >
+              Confirm and Save
+            </button>
+            <button
+              onClick={() => {
+                setNextReviewOverrides(new Map());
+                confirmAndPersist();
+              }}
+              className="flex-1 py-3 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium"
+            >
+              Use Defaults
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (phase === "complete") {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -251,6 +358,24 @@ export default function SessionPage() {
   const card = pool[currentIndex];
   if (!card) return null;
 
+  // Calculate status panel data
+  const rememberedCount = Array.from(results.values()).filter(
+    (r) => r.outcome === "remembered"
+  ).length;
+
+  const initialPoolIds = new Set([...pool, ...pending].map((c) => c.id));
+  const currentPoolStatus = [...pool, ...pending]
+    .filter((c) => initialPoolIds.has(c.id))
+    .map((c) => {
+      const result = results.get(c.id);
+      const status = result
+        ? result.outcome === "remembered"
+          ? "remembered"
+          : "forgot"
+        : "pending";
+      return { id: c.id, key: c.key, status };
+    });
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-xl mx-auto px-4 py-8">
@@ -258,13 +383,86 @@ export default function SessionPage() {
           <span className="text-sm text-gray-500">
             {pool.length} card{pool.length !== 1 ? "s" : ""} remaining
           </span>
-          <button
-            onClick={() => finishSession(results)}
-            className="text-sm text-gray-500 hover:text-gray-700"
-          >
-            End session
-          </button>
+          <div className="flex gap-4">
+            <button
+              onClick={() => setShowStatus(!showStatus)}
+              className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+            >
+              {showStatus ? "Hide" : "Show"} Status
+            </button>
+            <button
+              onClick={() => finishSession(results)}
+              className="text-sm text-gray-500 hover:text-gray-700"
+            >
+              End session
+            </button>
+          </div>
         </div>
+
+        {/* Status Panel */}
+        {showStatus && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Session Status</h2>
+
+            {/* Remembered count */}
+            <div className="mb-4">
+              <p className="text-sm font-medium text-gray-700 mb-1">Remembered this session</p>
+              <p className="text-2xl font-bold text-green-600">{rememberedCount}</p>
+            </div>
+
+            {/* Current pool */}
+            <div className="mb-4">
+              <p className="text-sm font-medium text-gray-700 mb-2">Current pool</p>
+              <div className="space-y-1 max-h-48 overflow-y-auto">
+                {currentPoolStatus.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between text-xs p-2 bg-gray-50 rounded"
+                  >
+                    <span className="truncate flex-1">{item.key}</span>
+                    <span
+                      className={`ml-2 px-2 py-1 rounded text-xs font-medium ${
+                        item.status === "remembered"
+                          ? "bg-green-100 text-green-700"
+                          : item.status === "forgot"
+                          ? "bg-red-100 text-red-700"
+                          : "bg-gray-100 text-gray-700"
+                      }`}
+                    >
+                      {item.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Today's reviewed list */}
+            {reviewedToday.length > 0 && (
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">Reviewed earlier today</p>
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {reviewedToday.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between text-xs p-2 bg-gray-50 rounded"
+                    >
+                      <span className="truncate flex-1">{item.key}</span>
+                      <span
+                        className={`ml-2 px-2 py-1 rounded text-xs font-medium ${
+                          item.outcome === "remembered"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {item.outcome}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Card */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 mb-6">

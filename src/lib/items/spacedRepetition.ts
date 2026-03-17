@@ -20,9 +20,14 @@ export function computeIntervalUpdate(
   }
 
   const newInterval = current.interval_days * 2;
+  // First-graduation rule: if this is the first time graduating (consecutive_correct was 0),
+  // always schedule for tomorrow (today + 1) regardless of the doubled interval
+  const isFirstGraduation = current.consecutive_correct === 0;
+  const daysToAdd = isFirstGraduation ? 1 : newInterval;
+
   return {
     interval_days: newInterval,
-    next_review_at: offsetDate(today, newInterval),
+    next_review_at: offsetDate(today, daysToAdd),
     consecutive_correct: current.consecutive_correct + 1,
   };
 }

@@ -7,6 +7,7 @@ interface ResultEntry {
   outcome: CardOutcome;
   interval_days: number;
   consecutive_correct: number;
+  next_review_at_override?: string; // Optional per-card override for next_review_at
 }
 
 export async function POST(request: Request) {
@@ -27,19 +28,23 @@ export async function POST(request: Request) {
   const updates = [];
 
   for (const entry of results) {
-    const { id, outcome, interval_days, consecutive_correct } =
+    const { id, outcome, interval_days, consecutive_correct, next_review_at_override } =
       entry as ResultEntry;
     const update = computeIntervalUpdate(
       { interval_days, consecutive_correct },
       outcome,
       today
     );
+
+    // Use override if provided, otherwise use algorithm-computed date
+    const finalNextReviewAt = next_review_at_override ?? update.next_review_at;
+
     updates.push(
       supabase
         .from("items")
         .update({
           interval_days: update.interval_days,
-          next_review_at: update.next_review_at,
+          next_review_at: finalNextReviewAt,
           consecutive_correct: update.consecutive_correct,
         })
         .eq("id", id)

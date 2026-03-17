@@ -140,8 +140,8 @@ describe("SessionPage", () => {
     });
   });
 
-  it("graduates card and shows complete after 3 consecutive remembered (single card)", async () => {
-    // Single card: after 3 "remembered" answers it graduates and session ends
+  it("graduates card and shows confirmation screen after 3 consecutive remembered (single card)", async () => {
+    // Single card: after 3 "remembered" answers it graduates and shows confirmation
     mockFetch
       .mockResolvedValueOnce({
         ok: true,
@@ -165,6 +165,17 @@ describe("SessionPage", () => {
       });
     }
 
+    // Should show confirmation screen
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: /confirm review schedule/i })).toBeInTheDocument();
+    });
+
+    // Confirm and save
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /confirm and save/i }));
+    });
+
+    // Should show completion screen
     await waitFor(() => {
       expect(screen.getByText(/session complete/i)).toBeInTheDocument();
     });
@@ -198,7 +209,7 @@ describe("SessionPage", () => {
     });
   });
 
-  it("calls POST /api/session/complete when session ends early", async () => {
+  it("shows confirmation screen when session ends early with reviewed cards", async () => {
     const cards = [makeCard("1"), makeCard("2")];
     mockFetch
       .mockResolvedValueOnce({
@@ -212,12 +223,20 @@ describe("SessionPage", () => {
       expect(screen.getByRole("button", { name: /end session/i })).toBeInTheDocument();
     });
 
+    // Review one card first
+    fireEvent.click(screen.getByRole("button", { name: /show answer/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /remembered/i }));
+    });
+
+    // End session early
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /end session/i }));
     });
 
+    // Should show confirmation screen
     await waitFor(() => {
-      expect(screen.getByText(/session complete/i)).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: /confirm review schedule/i })).toBeInTheDocument();
     });
   });
 
@@ -324,5 +343,212 @@ describe("SessionPage", () => {
     // Remembered and Forgot buttons should be disabled
     expect(screen.getByRole("button", { name: /remembered/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /forgot/i })).toBeDisabled();
+  });
+
+  describe("Post-session confirmation screen", () => {
+    it("allows user to override next_review_at for individual cards", async () => {
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => [makeCard("1")],
+        } as Response)
+        .mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
+
+      render(<SessionPage />);
+      await waitFor(() => screen.getByText("Key 1"));
+
+      // Graduate the card
+      for (let i = 0; i < 3; i++) {
+        fireEvent.click(screen.getByRole("button", { name: /show answer/i }));
+        await act(async () => {
+          fireEvent.click(screen.getByRole("button", { name: /remembered/i }));
+        });
+      }
+
+      // Should show confirmation screen with date input
+      await waitFor(() => {
+        expect(screen.getByRole("heading", { name: /confirm review schedule/i })).toBeInTheDocument();
+      });
+
+      // Find the date input and change it
+      const dateInput = screen.getByDisplayValue(/\d{4}-\d{2}-\d{2}/);
+      fireEvent.change(dateInput, { target: { value: "2026-04-01" } });
+
+      // Confirm and save
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /confirm and save/i }));
+      });
+
+      // Verify the override was sent in the API call
+      await waitFor(() => {
+        const calls = mockFetch.mock.calls.filter(
+          (call) => call[0] === "/api/session/complete"
+        );
+        expect(calls.length).toBe(1);
+        const body = JSON.parse(calls[0][1]?.body as string);
+        expect(body.results[0].next_review_at_override).toBe("2026-04-01");
+      });
+    });
+
+    it("allows user to use defaults without overriding", async () => {
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => [makeCard("1")],
+        } as Response)
+        .mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
+
+      render(<SessionPage />);
+      await waitFor(() => screen.getByText("Key 1"));
+
+      // Graduate the card
+      for (let i = 0; i < 3; i++) {
+        fireEvent.click(screen.getByRole("button", { name: /show answer/i }));
+        await act(async () => {
+          fireEvent.click(screen.getByRole("button", { name: /remembered/i }));
+        });
+      }
+
+      await waitFor(() => {
+        expect(screen.getByRole("heading", { name: /confirm review schedule/i })).toBeInTheDocument();
+      });
+
+      // Click "Use Defaults" button
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /use defaults/i }));
+      });
+
+      // Verify no overrides were sent
+      await waitFor(() => {
+        const calls = mockFetch.mock.calls.filter(
+          (call) => call[0] === "/api/session/complete"
+        );
+        expect(calls.length).toBe(1);
+        const body = JSON.parse(calls[0][1]?.body as string);
+        expect(body.results[0].next_review_at_override).toBeUndefined();
+      });
+    });
+
+    it("shows algorithm-computed date by default in confirmation screen", async () => {
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => [makeCard("1")],
+        } as Response)
+        .mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
+
+      render(<SessionPage />);
+      await waitFor(() => screen.getByText("Key 1"));
+
+      // Graduate the card
+      for (let i = 0; i < 3; i++) {
+        fireEvent.click(screen.getByRole("button", { name: /show answer/i }));
+        await act(async () => {
+          fireEvent.click(screen.getByRole("button", { name: /remembered/i }));
+        });
+      }
+
+      await waitFor(() => {
+        expect(screen.getByRole("heading", { name: /confirm review schedule/i })).toBeInTheDocument();
+      });
+
+      // Date input should have a default value (algorithm-computed, in YYYY-MM-DD format)
+      const dateInput = screen.getByDisplayValue(/\d{4}-\d{2}-\d{2}/);
+      expect(dateInput).toBeInTheDocument();
+      // Just verify it's a valid date string
+      const value = (dateInput as HTMLInputElement).value;
+      expect(value).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    });
+  });
+
+  describe("Session status panel", () => {
+    it("toggles status panel visibility", async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => [makeCard("1")],
+      } as Response);
+
+      render(<SessionPage />);
+      await waitFor(() => screen.getByText("Key 1"));
+
+      // Status panel should not be visible initially
+      expect(screen.queryByText(/session status/i)).not.toBeInTheDocument();
+
+      // Click Show Status
+      fireEvent.click(screen.getByRole("button", { name: /show status/i }));
+
+      // Status panel should be visible
+      expect(screen.getByText(/session status/i)).toBeInTheDocument();
+
+      // Click Hide Status
+      fireEvent.click(screen.getByRole("button", { name: /hide status/i }));
+
+      // Status panel should be hidden again
+      expect(screen.queryByText(/session status/i)).not.toBeInTheDocument();
+    });
+
+    it("displays remembered count in status panel", async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => [makeCard("1"), makeCard("2")],
+      } as Response);
+
+      render(<SessionPage />);
+      await waitFor(() => {
+        const hasCard =
+          screen.queryByText("Key 1") !== null ||
+          screen.queryByText("Key 2") !== null;
+        expect(hasCard).toBe(true);
+      });
+
+      // Show status panel
+      fireEvent.click(screen.getByRole("button", { name: /show status/i }));
+
+      // Initially 0 remembered
+      expect(screen.getByText(/remembered this session/i)).toBeInTheDocument();
+      expect(screen.getByText("0")).toBeInTheDocument();
+
+      // Remember one card
+      fireEvent.click(screen.getByRole("button", { name: /show answer/i }));
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /remembered/i }));
+      });
+
+      // Should show 1 remembered
+      await waitFor(() => {
+        expect(screen.getByText("1")).toBeInTheDocument();
+      });
+    });
+
+    it("displays current pool with status in status panel", async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => [makeCard("1"), makeCard("2")],
+      } as Response);
+
+      render(<SessionPage />);
+      await waitFor(() => {
+        const hasCard =
+          screen.queryByText("Key 1") !== null ||
+          screen.queryByText("Key 2") !== null;
+        expect(hasCard).toBe(true);
+      });
+
+      // Show status panel
+      fireEvent.click(screen.getByRole("button", { name: /show status/i }));
+
+      // Should show current pool
+      expect(screen.getByText(/current pool/i)).toBeInTheDocument();
+
+      // Both keys should appear (in the pool list and possibly in the card display)
+      const key1Elements = screen.getAllByText("Key 1");
+      const key2Elements = screen.getAllByText("Key 2");
+      expect(key1Elements.length).toBeGreaterThan(0);
+      expect(key2Elements.length).toBeGreaterThan(0);
+
+      // Should show "pending" status
+      const pendingBadges = screen.getAllByText(/pending/i);
+      expect(pendingBadges.length).toBeGreaterThan(0);
+    });
   });
 });

@@ -8,7 +8,10 @@ export interface Item {
   created_at: string;
 }
 
-/** Returns up to 10 old + 10 new cards, combined and shuffled. */
+/** Returns up to 10 old + 10 new cards, combined and shuffled.
+ * If fewer than 10 new cards exist, remaining slots are filled with upcoming cards
+ * (cards where next_review_at > today), ordered by next_review_at ASC.
+ */
 export function buildSessionPool(
   allItems: Item[],
   today: Date = new Date()
@@ -17,6 +20,7 @@ export function buildSessionPool(
   const isNew = (i: Item) =>
     i.consecutive_correct === 0 && i.next_review_at === todayStr;
   const isDue = (i: Item) => !isNew(i) && i.next_review_at <= todayStr;
+  const isUpcoming = (i: Item) => i.next_review_at > todayStr;
 
   const oldCards = allItems
     .filter(isDue)
@@ -28,7 +32,20 @@ export function buildSessionPool(
     .sort((a, b) => a.created_at.localeCompare(b.created_at))
     .slice(0, 10);
 
-  return shuffle([...oldCards, ...newCards]);
+  // If fewer than 10 new cards, fill remaining slots with upcoming cards
+  const newSlotsNeeded = 10 - newCards.length;
+  let finalNewCards = newCards;
+
+  if (newSlotsNeeded > 0) {
+    const upcomingCards = allItems
+      .filter(isUpcoming)
+      .sort((a, b) => a.next_review_at.localeCompare(b.next_review_at))
+      .slice(0, newSlotsNeeded);
+
+    finalNewCards = [...newCards, ...upcomingCards];
+  }
+
+  return shuffle([...oldCards, ...finalNewCards]);
 }
 
 function shuffle<T>(arr: T[]): T[] {

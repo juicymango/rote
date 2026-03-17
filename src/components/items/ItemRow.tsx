@@ -45,7 +45,7 @@ export default function ItemRow({
             <span>created: {createdAt.slice(0, 10)}</span>
             <span>next review: {nextReviewAt}</span>
             <span>interval: {intervalDays}d</span>
-            <span>streak: {consecutiveCorrect}</span>
+            <span>Streak: {consecutiveCorrect}</span>
           </div>
         </div>
         <div className="flex gap-2 shrink-0">

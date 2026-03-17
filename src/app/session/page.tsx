@@ -55,6 +55,8 @@ export default function SessionPage() {
   const [showStatus, setShowStatus] = useState(false);
   // confirmation screen: map of card id to next_review_at override
   const [nextReviewOverrides, setNextReviewOverrides] = useState<Map<string, string>>(new Map());
+  // all cards loaded for this session (used to look up keys on confirm screen)
+  const [allSessionCards, setAllSessionCards] = useState<Map<string, Item>>(new Map());
 
   useEffect(() => {
     async function loadSession() {
@@ -74,6 +76,7 @@ export default function SessionPage() {
         const initialPending = data.slice(20);
         setPool(initialPool);
         setPending(initialPending);
+        setAllSessionCards(new Map(data.map((item) => [item.id, item])));
         setCurrentIndex(Math.floor(Math.random() * initialPool.length));
         setPhase("review");
       } catch {
@@ -261,7 +264,7 @@ export default function SessionPage() {
   if (phase === "confirm") {
     const today = new Date();
     const cardsToConfirm = Array.from(results.values()).map((entry) => {
-      const poolCard = [...pool, ...pending].find((c) => c.id === entry.id);
+      const sessionCard = allSessionCards.get(entry.id);
       const algorithmDate = computeIntervalUpdate(
         { interval_days: entry.interval_days, consecutive_correct: entry.consecutive_correct },
         entry.outcome,
@@ -271,7 +274,7 @@ export default function SessionPage() {
 
       return {
         id: entry.id,
-        key: poolCard?.key || "Unknown",
+        key: sessionCard?.key ?? entry.id,
         outcome: entry.outcome,
         algorithmDate,
         selectedDate: override || algorithmDate,

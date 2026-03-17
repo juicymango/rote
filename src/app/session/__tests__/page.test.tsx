@@ -429,6 +429,34 @@ describe("SessionPage", () => {
       });
     });
 
+    it("shows card key (not Unknown) in confirmation screen after graduation", async () => {
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => [makeCard("1")],
+        } as Response)
+        .mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
+
+      render(<SessionPage />);
+      await waitFor(() => screen.getByText("Key 1"));
+
+      // Graduate the card (removes it from pool)
+      for (let i = 0; i < 3; i++) {
+        fireEvent.click(screen.getByRole("button", { name: /show answer/i }));
+        await act(async () => {
+          fireEvent.click(screen.getByRole("button", { name: /remembered/i }));
+        });
+      }
+
+      await waitFor(() => {
+        expect(screen.getByRole("heading", { name: /confirm review schedule/i })).toBeInTheDocument();
+      });
+
+      // Card key should be shown, not "Unknown"
+      expect(screen.getByText("Key 1")).toBeInTheDocument();
+      expect(screen.queryByText("Unknown")).not.toBeInTheDocument();
+    });
+
     it("shows algorithm-computed date by default in confirmation screen", async () => {
       mockFetch
         .mockResolvedValueOnce({

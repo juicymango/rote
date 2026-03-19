@@ -1,0 +1,112 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import ReactMarkdown from "react-markdown";
+import Link from "next/link";
+
+export default function NewItemPage() {
+  const router = useRouter();
+  const [key, setKey] = useState("");
+  const [value, setValue] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+
+    if (!key.trim()) {
+      setError("Key is required.");
+      return;
+    }
+    if (!value.trim()) {
+      setError("Value is required.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: key.trim(), value: value.trim() }),
+      });
+      if (!res.ok) {
+        const msg = await res.text();
+        setError(msg || "Failed to create item.");
+        return;
+      }
+      router.push("/items");
+      router.refresh();
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-2xl mx-auto px-4 py-8">
+        <div className="flex items-center gap-4 mb-6">
+          <Link href="/items" className="text-gray-500 hover:text-gray-700">
+            ← Back
+          </Link>
+          <h1 className="text-2xl font-bold text-gray-900">Add Item</h1>
+        </div>
+
+        <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-4">
+          {error && (
+            <p className="text-red-600 text-sm" role="alert">
+              {error}
+            </p>
+          )}
+
+          <div>
+            <label htmlFor="key" className="block text-sm font-medium text-gray-700 mb-1">
+              Key
+            </label>
+            <input
+              id="key"
+              type="text"
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="Question or term"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="value" className="block text-sm font-medium text-gray-700 mb-1">
+              Value (Markdown)
+            </label>
+            <textarea
+              id="value"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              rows={6}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
+              placeholder="Answer or definition (markdown supported)"
+            />
+          </div>
+
+          {value && (
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-1">Preview</p>
+              <div className="prose prose-sm max-w-none p-3 border border-gray-200 rounded-md bg-gray-50">
+                <ReactMarkdown>{value}</ReactMarkdown>
+              </div>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full py-2 px-4 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed min-h-11"
+          >
+            {submitting ? "Saving..." : "Save Item"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}

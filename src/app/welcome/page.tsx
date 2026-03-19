@@ -27,9 +27,23 @@ export default async function WelcomePage() {
           You are signed in as{" "}
           <span className="font-semibold text-indigo-600">{user.email}</span>.
         </p>
-        <p className="text-gray-500 mb-8 text-sm">
+        <p className="text-gray-500 mb-6 text-sm">
           Build your memory with spaced repetition.
         </p>
+        <div className="flex flex-col gap-3 mb-4">
+          <a
+            href="/items"
+            className="w-full py-2 px-4 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 font-medium text-center"
+          >
+            Go to Items
+          </a>
+          <a
+            href="/session"
+            className="w-full py-2 px-4 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 font-medium text-center"
+          >
+            Start Session
+          </a>
+        </div>
         <form action={handleSignOut}>
           <button
             type="submit"

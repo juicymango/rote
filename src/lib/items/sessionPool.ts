@@ -8,13 +8,18 @@ export interface Item {
   created_at: string;
 }
 
-/** Returns up to 10 old + 10 new cards, combined and shuffled.
- * If fewer than 10 new cards exist, remaining slots are filled with upcoming cards
+export const DEFAULT_OLD_COUNT = 10;
+export const DEFAULT_NEW_COUNT = 10;
+
+/** Returns up to maxOld old + maxNew new cards, combined and shuffled.
+ * If fewer than maxNew new cards exist, remaining slots are filled with upcoming cards
  * (cards where next_review_at > today), ordered by next_review_at ASC.
  */
 export function buildSessionPool(
   allItems: Item[],
-  today: Date = new Date()
+  today: Date = new Date(),
+  maxOld: number = DEFAULT_OLD_COUNT,
+  maxNew: number = DEFAULT_NEW_COUNT
 ): Item[] {
   const todayStr = today.toISOString().slice(0, 10);
   const isNew = (i: Item) =>
@@ -25,15 +30,15 @@ export function buildSessionPool(
   const oldCards = allItems
     .filter(isDue)
     .sort((a, b) => a.next_review_at.localeCompare(b.next_review_at))
-    .slice(0, 10);
+    .slice(0, maxOld);
 
   const newCards = allItems
     .filter(isNew)
     .sort((a, b) => a.created_at.localeCompare(b.created_at))
-    .slice(0, 10);
+    .slice(0, maxNew);
 
-  // If fewer than 10 new cards, fill remaining slots with upcoming cards
-  const newSlotsNeeded = 10 - newCards.length;
+  // If fewer than maxNew new cards, fill remaining slots with upcoming cards
+  const newSlotsNeeded = maxNew - newCards.length;
   let finalNewCards = newCards;
 
   if (newSlotsNeeded > 0) {

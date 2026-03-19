@@ -92,4 +92,61 @@ describe("computeIntervalUpdate", () => {
       expect(result.next_review_at).toBe("2026-03-31");
     });
   });
+
+  describe("first-forgot soft penalty", () => {
+    it("halves interval on first forgot of an old card", () => {
+      const result = computeIntervalUpdate(
+        { interval_days: 8, consecutive_correct: 3 },
+        "forgot",
+        TODAY,
+        true // isFirstForgot
+      );
+      expect(result.interval_days).toBe(4); // halved
+      expect(result.consecutive_correct).toBe(0);
+      expect(result.next_review_at).toBe("2026-03-16"); // tomorrow
+    });
+
+    it("always resets interval to 1 on subsequent forgets (isFirstForgot=false)", () => {
+      const result = computeIntervalUpdate(
+        { interval_days: 8, consecutive_correct: 3 },
+        "forgot",
+        TODAY,
+        false // not first forgot
+      );
+      expect(result.interval_days).toBe(1); // full reset
+      expect(result.consecutive_correct).toBe(0);
+      expect(result.next_review_at).toBe("2026-03-16");
+    });
+
+    it("resets to 1 for new cards even on first forgot (interval_days=1)", () => {
+      const result = computeIntervalUpdate(
+        { interval_days: 1, consecutive_correct: 0 },
+        "forgot",
+        TODAY,
+        true // isFirstForgot but it's a new card
+      );
+      expect(result.interval_days).toBe(1); // no halving for new cards
+      expect(result.consecutive_correct).toBe(0);
+    });
+
+    it("ensures halved interval is at least 1", () => {
+      const result = computeIntervalUpdate(
+        { interval_days: 2, consecutive_correct: 1 },
+        "forgot",
+        TODAY,
+        true
+      );
+      expect(result.interval_days).toBe(1); // floor(2/2) = 1
+    });
+
+    it("applies soft penalty with isFirstForgot=false by default (backward-compatible)", () => {
+      // Without isFirstForgot, old cards always reset to 1
+      const result = computeIntervalUpdate(
+        { interval_days: 16, consecutive_correct: 4 },
+        "forgot",
+        TODAY
+      );
+      expect(result.interval_days).toBe(1);
+    });
+  });
 });

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import Link from "next/link";
 import { Item } from "@/lib/items/sessionPool";
@@ -13,6 +12,7 @@ interface ResultEntry {
   interval_days: number;
   consecutive_correct: number;
   next_review_at_override?: string;
+  is_first_forgot?: boolean;
 }
 
 interface ReviewedToday {
@@ -21,7 +21,7 @@ interface ReviewedToday {
   outcome: "remembered" | "forgot";
 }
 
-type Phase = "loading" | "empty" | "review" | "confirm" | "complete";
+type Phase = "setup" | "loading" | "empty" | "review" | "confirm" | "complete";
 
 const GRADUATION_COUNT = 3;
 
@@ -35,18 +35,20 @@ function pickNext(pool: Item[], excludeId: string | null): number {
 }
 
 export default function SessionPage() {
-  const router = useRouter();
-  const [phase, setPhase] = useState<Phase>("loading");
+  const [phase, setPhase] = useState<Phase>("setup");
+  const [maxOld, setMaxOld] = useState(10);
+  const [maxNew, setMaxNew] = useState(10);
   const [pool, setPool] = useState<Item[]>([]);
   const [pending, setPending] = useState<Item[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [prevId, setPrevId] = useState<string | null>(null);
   const [answerRevealed, setAnswerRevealed] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editedValue, setEditedValue] = useState("");
   const [saving, setSaving] = useState(false);
   // consecutive correct count within this session per card id
   const [sessionCorrect, setSessionCorrect] = useState<Map<string, number>>(new Map());
+  // tracks how many times each card has been forgotten in this session
+  const [sessionForgotCount, setSessionForgotCount] = useState<Map<string, number>>(new Map());
   // final outcome per card for persisting at session end
   const [results, setResults] = useState<Map<string, ResultEntry>>(new Map());
   // today's reviewed list (fetched once on session start)
@@ -59,9 +61,10 @@ export default function SessionPage() {
   const [allSessionCards, setAllSessionCards] = useState<Map<string, Item>>(new Map());
 
   useEffect(() => {
+    if (phase !== "loading") return;
     async function loadSession() {
       try {
-        const res = await fetch("/api/session");
+        const res = await fetch(`/api/session?old=${maxOld}&new=${maxNew}`);
         if (!res.ok) {
           setPhase("empty");
           return;
@@ -71,9 +74,9 @@ export default function SessionPage() {
           setPhase("empty");
           return;
         }
-        // Split into initial pool (up to 20) and any pending remainder
-        const initialPool = data.slice(0, 20);
-        const initialPending = data.slice(20);
+        // Split into initial pool (up to maxOld+maxNew) and any pending remainder
+        const initialPool = data.slice(0, maxOld + maxNew);
+        const initialPending = data.slice(maxOld + maxNew);
         setPool(initialPool);
         setPending(initialPending);
         setAllSessionCards(new Map(data.map((item) => [item.id, item])));
@@ -84,7 +87,7 @@ export default function SessionPage() {
       }
     }
     loadSession();
-  }, []);
+  }, [phase, maxOld, maxNew]);
 
   const finishSession = useCallback(
     (finalResults: Map<string, ResultEntry>) => {
@@ -92,7 +95,21 @@ export default function SessionPage() {
         setPhase("complete");
         return;
       }
-      // Show confirmation screen instead of completing immediately
+      // Pre-populate overrides with algorithm-computed dates so the client-computed
+      // date is always sent to the server, preventing timezone drift between client
+      // and server recomputation.
+      const today = new Date();
+      const initialOverrides = new Map<string, string>();
+      for (const entry of finalResults.values()) {
+        const { next_review_at } = computeIntervalUpdate(
+          { interval_days: entry.interval_days, consecutive_correct: entry.consecutive_correct },
+          entry.outcome,
+          today,
+          entry.is_first_forgot
+        );
+        initialOverrides.set(entry.id, next_review_at);
+      }
+      setNextReviewOverrides(initialOverrides);
       setPhase("confirm");
     },
     []
@@ -131,7 +148,6 @@ export default function SessionPage() {
     const nextIndex = pickNext(newPool, graduated ? null : cardId);
     setPool(newPool);
     setPending(newPending);
-    setPrevId(cardId);
     setCurrentIndex(nextIndex);
     setAnswerRevealed(false);
     setEditing(false);
@@ -221,17 +237,69 @@ export default function SessionPage() {
     newCorrect.set(card.id, 0);
     setSessionCorrect(newCorrect);
 
+    // Track how many times this card has been forgotten in this session
+    const newForgotCount = new Map(sessionForgotCount);
+    const prevForgotCount = newForgotCount.get(card.id) ?? 0;
+    const isFirstForgot = prevForgotCount === 0;
+    newForgotCount.set(card.id, prevForgotCount + 1);
+    setSessionForgotCount(newForgotCount);
+
     const newResults = new Map(results);
     newResults.set(card.id, {
       id: card.id,
       outcome: "forgot",
       interval_days: card.interval_days,
       consecutive_correct: card.consecutive_correct,
+      is_first_forgot: isFirstForgot,
     });
     setResults(newResults);
 
     // Advance to next card immediately (no Next button needed)
     advanceCard([...pool], [...pending], newResults, card.id, false);
+  }
+
+  if (phase === "setup") {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+          <h1 className="text-2xl font-bold text-gray-900 mb-6">Start Session</h1>
+          <div className="space-y-4 mb-8">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Old cards (due for review)
+              </label>
+              <input
+                type="number"
+                min={0}
+                max={50}
+                value={maxOld}
+                onChange={(e) => setMaxOld(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                New cards
+              </label>
+              <input
+                type="number"
+                min={0}
+                max={50}
+                value={maxNew}
+                onChange={(e) => setMaxNew(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+              />
+            </div>
+          </div>
+          <button
+            onClick={() => setPhase("loading")}
+            className="w-full py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 font-medium"
+          >
+            Start Session
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (phase === "loading") {
@@ -268,7 +336,8 @@ export default function SessionPage() {
       const algorithmDate = computeIntervalUpdate(
         { interval_days: entry.interval_days, consecutive_correct: entry.consecutive_correct },
         entry.outcome,
-        today
+        today,
+        entry.is_first_forgot
       ).next_review_at;
       const override = nextReviewOverrides.get(entry.id);
 
@@ -325,10 +394,7 @@ export default function SessionPage() {
               Confirm and Save
             </button>
             <button
-              onClick={() => {
-                setNextReviewOverrides(new Map());
-                confirmAndPersist();
-              }}
+              onClick={confirmAndPersist}
               className="flex-1 py-3 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium"
             >
               Use Defaults

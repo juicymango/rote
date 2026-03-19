@@ -226,4 +226,59 @@ describe("buildSessionPool", () => {
       expect(ids.every((id) => id.startsWith("upcoming-"))).toBe(true);
     });
   });
+
+  describe("dynamic pool size (maxOld / maxNew)", () => {
+    it("respects custom maxOld", () => {
+      const oldCards = Array.from({ length: 10 }, (_, i) =>
+        makeItem({
+          id: `old-${i}`,
+          consecutive_correct: 1,
+          next_review_at: "2026-03-14",
+        })
+      );
+      const pool = buildSessionPool(oldCards, TODAY, 5, 10);
+      expect(pool.length).toBe(5);
+      const ids = pool.map((c) => c.id);
+      expect(ids.every((id) => id.startsWith("old-"))).toBe(true);
+    });
+
+    it("respects custom maxNew", () => {
+      const newCards = Array.from({ length: 10 }, (_, i) =>
+        makeItem({ id: `new-${i}` })
+      );
+      const pool = buildSessionPool(newCards, TODAY, 10, 3);
+      expect(pool.length).toBe(3);
+      const ids = pool.map((c) => c.id);
+      expect(ids.every((id) => id.startsWith("new-"))).toBe(true);
+    });
+
+    it("fills new slots with upcoming cards up to custom maxNew", () => {
+      const newCards = [makeItem({ id: "new-1" })];
+      const upcomingCards = Array.from({ length: 5 }, (_, i) =>
+        makeItem({
+          id: `upcoming-${i}`,
+          consecutive_correct: 1,
+          next_review_at: `2026-03-${16 + i}`,
+        })
+      );
+      const pool = buildSessionPool([...newCards, ...upcomingCards], TODAY, 10, 4);
+      // Should have 1 new + 3 upcoming = 4 total new-side cards
+      expect(pool.length).toBe(4);
+    });
+
+    it("returns up to maxOld + maxNew total cards", () => {
+      const oldCards = Array.from({ length: 10 }, (_, i) =>
+        makeItem({
+          id: `old-${i}`,
+          consecutive_correct: 1,
+          next_review_at: "2026-03-14",
+        })
+      );
+      const newCards = Array.from({ length: 10 }, (_, i) =>
+        makeItem({ id: `new-${i}` })
+      );
+      const pool = buildSessionPool([...oldCards, ...newCards], TODAY, 3, 5);
+      expect(pool.length).toBe(8); // 3 old + 5 new
+    });
+  });
 });

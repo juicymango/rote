@@ -36,7 +36,8 @@ describe("GET /api/session", () => {
     mockCreateClient.mockResolvedValue({
       auth: { getUser: jest.fn().mockResolvedValue({ data: { user: null } }) },
     } as never);
-    const res = await GET();
+    const req = new Request("http://localhost/api/session");
+    const res = await GET(req);
     expect(res.status).toBe(401);
   });
 
@@ -56,7 +57,8 @@ describe("GET /api/session", () => {
       }),
     } as never);
 
-    const res = await GET();
+    const req = new Request("http://localhost/api/session");
+    const res = await GET(req);
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toHaveLength(5);
@@ -78,7 +80,8 @@ describe("GET /api/session", () => {
       }),
     } as never);
 
-    const res = await GET();
+    const req = new Request("http://localhost/api/session");
+    const res = await GET(req);
     const body = await res.json();
     expect(body.length).toBeLessThanOrEqual(20);
   });

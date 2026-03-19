@@ -8,6 +8,7 @@ interface ResultEntry {
   interval_days: number;
   consecutive_correct: number;
   next_review_at_override?: string; // Optional per-card override for next_review_at
+  is_first_forgot?: boolean; // Whether this was the first forget in the session
 }
 
 export async function POST(request: Request) {
@@ -28,12 +29,13 @@ export async function POST(request: Request) {
   const updates = [];
 
   for (const entry of results) {
-    const { id, outcome, interval_days, consecutive_correct, next_review_at_override } =
+    const { id, outcome, interval_days, consecutive_correct, next_review_at_override, is_first_forgot } =
       entry as ResultEntry;
     const update = computeIntervalUpdate(
       { interval_days, consecutive_correct },
       outcome,
-      today
+      today,
+      is_first_forgot
     );
 
     // Use override if provided, otherwise use algorithm-computed date

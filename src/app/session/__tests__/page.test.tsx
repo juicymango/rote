@@ -1,11 +1,6 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 
-const mockPush = jest.fn();
-jest.mock("next/navigation", () => ({
-  useRouter: () => ({ push: mockPush }),
-}));
-
 jest.mock("react-markdown", () => ({
   __esModule: true,
   default: ({ children }: { children: string }) => (
@@ -33,15 +28,35 @@ function makeCard(id: string, overrides = {}) {
 
 import SessionPage from "../page";
 
+/** Renders SessionPage and clicks "Start Session" to proceed past the setup screen. */
+async function renderAndStart() {
+  render(<SessionPage />);
+  await waitFor(() => {
+    expect(screen.getByRole("button", { name: /start session/i })).toBeInTheDocument();
+  });
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: /start session/i }));
+  });
+}
+
 describe("SessionPage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockFetch.mockReset();
   });
 
-  it("shows loading state initially", () => {
+  it("shows setup screen initially with old/new card count inputs", () => {
+    render(<SessionPage />);
+    expect(screen.getByRole("heading", { name: /start session/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /start session/i })).toBeInTheDocument();
+  });
+
+  it("shows loading state after clicking Start Session", async () => {
     mockFetch.mockReturnValue(new Promise(() => {}));
     render(<SessionPage />);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /start session/i }));
+    });
     expect(screen.getByText(/loading session/i)).toBeInTheDocument();
   });
 
@@ -50,7 +65,7 @@ describe("SessionPage", () => {
       ok: true,
       json: async () => [],
     } as Response);
-    render(<SessionPage />);
+    await renderAndStart();
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: /no cards due/i })).toBeInTheDocument();
     });
@@ -62,7 +77,7 @@ describe("SessionPage", () => {
       ok: true,
       json: async () => cards,
     } as Response);
-    render(<SessionPage />);
+    await renderAndStart();
     await waitFor(() => {
       const hasCard =
         screen.queryByText("Key 1") !== null ||
@@ -77,7 +92,7 @@ describe("SessionPage", () => {
       ok: true,
       json: async () => cards,
     } as Response);
-    render(<SessionPage />);
+    await renderAndStart();
     await waitFor(() => screen.getByText("Key 1"));
 
     // Only Show Answer button should be visible
@@ -95,7 +110,7 @@ describe("SessionPage", () => {
       ok: true,
       json: async () => cards,
     } as Response);
-    render(<SessionPage />);
+    await renderAndStart();
     await waitFor(() => screen.getByText("Key 1"));
 
     fireEvent.click(screen.getByRole("button", { name: /show answer/i }));
@@ -115,7 +130,7 @@ describe("SessionPage", () => {
       ok: true,
       json: async () => cards,
     } as Response);
-    render(<SessionPage />);
+    await renderAndStart();
     await waitFor(() => {
       const hasCard =
         screen.queryByText("Key 1") !== null ||
@@ -149,7 +164,7 @@ describe("SessionPage", () => {
       } as Response)
       .mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response); // session complete POST
 
-    render(<SessionPage />);
+    await renderAndStart();
     await waitFor(() => screen.getByText("Key 1"));
 
     for (let i = 0; i < 3; i++) {
@@ -187,7 +202,7 @@ describe("SessionPage", () => {
       ok: true,
       json: async () => cards,
     } as Response);
-    render(<SessionPage />);
+    await renderAndStart();
     await waitFor(() => {
       const hasCard =
         screen.queryByText("Key 1") !== null ||
@@ -218,7 +233,7 @@ describe("SessionPage", () => {
       } as Response)
       .mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
 
-    render(<SessionPage />);
+    await renderAndStart();
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /end session/i })).toBeInTheDocument();
     });
@@ -246,7 +261,7 @@ describe("SessionPage", () => {
       ok: true,
       json: async () => cards,
     } as Response);
-    render(<SessionPage />);
+    await renderAndStart();
     await waitFor(() => screen.getByText("Key 1"));
 
     // Show Answer
@@ -268,7 +283,7 @@ describe("SessionPage", () => {
         json: async () => ({ ...cards[0], value: "Updated value" }),
       } as Response);
 
-    render(<SessionPage />);
+    await renderAndStart();
     await waitFor(() => screen.getByText("Key 1"));
 
     // Show Answer
@@ -306,7 +321,7 @@ describe("SessionPage", () => {
       json: async () => cards,
     } as Response);
 
-    render(<SessionPage />);
+    await renderAndStart();
     await waitFor(() => screen.getByText("Key 1"));
 
     // Show Answer and start editing
@@ -333,7 +348,7 @@ describe("SessionPage", () => {
       json: async () => cards,
     } as Response);
 
-    render(<SessionPage />);
+    await renderAndStart();
     await waitFor(() => screen.getByText("Key 1"));
 
     // Show Answer and start editing
@@ -354,7 +369,7 @@ describe("SessionPage", () => {
         } as Response)
         .mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
 
-      render(<SessionPage />);
+      await renderAndStart();
       await waitFor(() => screen.getByText("Key 1"));
 
       // Graduate the card
@@ -390,7 +405,7 @@ describe("SessionPage", () => {
       });
     });
 
-    it("allows user to use defaults without overriding", async () => {
+    it("uses algorithm-computed date as default override when Use Defaults is clicked", async () => {
       mockFetch
         .mockResolvedValueOnce({
           ok: true,
@@ -398,7 +413,7 @@ describe("SessionPage", () => {
         } as Response)
         .mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
 
-      render(<SessionPage />);
+      await renderAndStart();
       await waitFor(() => screen.getByText("Key 1"));
 
       // Graduate the card
@@ -418,14 +433,15 @@ describe("SessionPage", () => {
         fireEvent.click(screen.getByRole("button", { name: /use defaults/i }));
       });
 
-      // Verify no overrides were sent
+      // Verify algorithm-computed date was sent as the override
       await waitFor(() => {
         const calls = mockFetch.mock.calls.filter(
           (call) => call[0] === "/api/session/complete"
         );
         expect(calls.length).toBe(1);
         const body = JSON.parse(calls[0][1]?.body as string);
-        expect(body.results[0].next_review_at_override).toBeUndefined();
+        // Override is pre-populated with algorithm date to prevent server recomputation timezone drift
+        expect(body.results[0].next_review_at_override).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       });
     });
 
@@ -437,7 +453,7 @@ describe("SessionPage", () => {
         } as Response)
         .mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
 
-      render(<SessionPage />);
+      await renderAndStart();
       await waitFor(() => screen.getByText("Key 1"));
 
       // Graduate the card (removes it from pool)
@@ -465,7 +481,7 @@ describe("SessionPage", () => {
         } as Response)
         .mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
 
-      render(<SessionPage />);
+      await renderAndStart();
       await waitFor(() => screen.getByText("Key 1"));
 
       // Graduate the card
@@ -496,7 +512,7 @@ describe("SessionPage", () => {
         json: async () => [makeCard("1")],
       } as Response);
 
-      render(<SessionPage />);
+      await renderAndStart();
       await waitFor(() => screen.getByText("Key 1"));
 
       // Status panel should not be visible initially
@@ -521,7 +537,7 @@ describe("SessionPage", () => {
         json: async () => [makeCard("1"), makeCard("2")],
       } as Response);
 
-      render(<SessionPage />);
+      await renderAndStart();
       await waitFor(() => {
         const hasCard =
           screen.queryByText("Key 1") !== null ||
@@ -554,7 +570,7 @@ describe("SessionPage", () => {
         json: async () => [makeCard("1"), makeCard("2")],
       } as Response);
 
-      render(<SessionPage />);
+      await renderAndStart();
       await waitFor(() => {
         const hasCard =
           screen.queryByText("Key 1") !== null ||

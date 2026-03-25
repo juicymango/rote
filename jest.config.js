@@ -19,6 +19,7 @@ const customJestConfig = {
     "**/*.test.tsx",
   ],
   testTimeout: 10000,
+  testPathIgnorePatterns: ["/node_modules/", "/mcp-server/"],
 };
 
 module.exports = createJestConfig(customJestConfig);

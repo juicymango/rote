@@ -1,9 +1,9 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClientForRequest } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { buildSessionPool, DEFAULT_OLD_COUNT, DEFAULT_NEW_COUNT } from "@/lib/items/sessionPool";
 
 export async function GET(request: Request) {
-  const supabase = await createClient();
+  const supabase = await createClientForRequest(request);
   const {
     data: { user },
   } = await supabase.auth.getUser();

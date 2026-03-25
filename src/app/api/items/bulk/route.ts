@@ -1,9 +1,9 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClientForRequest } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { mergeValues } from "@/lib/items/mergeValues";
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
+  const supabase = await createClientForRequest(request);
   const {
     data: { user },
   } = await supabase.auth.getUser();

@@ -2,9 +2,13 @@
  * @jest-environment node
  */
 
-jest.mock("@/lib/supabase/server", () => ({
-  createClient: jest.fn(),
-}));
+jest.mock("@/lib/supabase/server", () => {
+  const createClient = jest.fn();
+  return {
+    createClient,
+    createClientForRequest: jest.fn().mockImplementation(() => createClient()),
+  };
+});
 
 jest.mock("@/lib/items/sessionPool", () => ({
   buildSessionPool: jest.fn((items: unknown[]) => items),

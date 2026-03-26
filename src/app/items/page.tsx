@@ -1,23 +1,47 @@
-import { redirect } from "next/navigation";
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/client";
 import ItemRow from "@/components/items/ItemRow";
 
-export default async function ItemsPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+interface Item {
+  id: string;
+  key: string;
+  value: string;
+  created_at: string;
+  next_review_at: string;
+  interval_days: number;
+  consecutive_correct: number;
+}
 
-  if (!user) {
-    redirect("/auth/login");
-    return null;
-  }
+export default function ItemsPage() {
+  const router = useRouter();
+  const [items, setItems] = useState<Item[] | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const { data: items } = await supabase
-    .from("items")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const fetchItems = useCallback(async () => {
+    const res = await fetch("/api/items");
+    if (res.status === 401) {
+      router.replace("/auth/login");
+      return;
+    }
+    const data = await res.json();
+    setItems(data);
+    setLoading(false);
+  }, [router]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) {
+        router.replace("/auth/login");
+      } else {
+        fetchItems();
+      }
+    });
+  }, [router, fetchItems]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -48,7 +72,9 @@ export default async function ItemsPage() {
         </div>
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          {!items || items.length === 0 ? (
+          {loading ? (
+            <p className="p-8 text-center text-gray-400">Loading…</p>
+          ) : !items || items.length === 0 ? (
             <p className="p-8 text-center text-gray-500">
               No items yet.{" "}
               <Link href="/items/new" className="text-indigo-600 hover:underline">
@@ -67,6 +93,7 @@ export default async function ItemsPage() {
                 nextReviewAt={item.next_review_at}
                 intervalDays={item.interval_days}
                 consecutiveCorrect={item.consecutive_correct}
+                onDeleted={fetchItems}
               />
             ))
           )}

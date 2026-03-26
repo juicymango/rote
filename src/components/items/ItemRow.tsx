@@ -10,6 +10,7 @@ interface ItemRowProps {
   nextReviewAt: string;
   intervalDays: number;
   consecutiveCorrect: number;
+  onDeleted?: () => void;
 }
 
 export default function ItemRow({
@@ -20,13 +21,18 @@ export default function ItemRow({
   nextReviewAt,
   intervalDays,
   consecutiveCorrect,
+  onDeleted,
 }: ItemRowProps) {
   const router = useRouter();
 
   async function handleDelete() {
     if (!window.confirm(`Delete "${itemKey}"?`)) return;
     await fetch(`/api/items/${id}`, { method: "DELETE" });
-    router.refresh();
+    if (onDeleted) {
+      onDeleted();
+    } else {
+      router.refresh();
+    }
   }
 
   function handleEdit() {

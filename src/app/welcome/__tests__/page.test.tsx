@@ -1,66 +1,97 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
-// Mock next/navigation redirect
 jest.mock("next/navigation", () => ({
-  redirect: jest.fn(),
+  useRouter: jest.fn(),
 }));
 
-// Mock Supabase server client
-jest.mock("@/lib/supabase/server", () => ({
+jest.mock("@/lib/supabase/client", () => ({
   createClient: jest.fn(),
 }));
 
-// Import after mocks
-import WelcomePage from "../page";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+jest.mock("next/link", () => ({
+  __esModule: true,
+  default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) => (
+    <a href={href} className={className}>{children}</a>
+  ),
+}));
 
-const mockRedirect = jest.mocked(redirect);
+import WelcomePage from "../page";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+
+const mockUseRouter = jest.mocked(useRouter);
 const mockCreateClient = jest.mocked(createClient);
 
 describe("WelcomePage", () => {
+  let mockReplace: jest.Mock;
+  let mockSignOut: jest.Mock;
+  let mockGetUser: jest.Mock;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    mockReplace = jest.fn();
+    mockSignOut = jest.fn().mockResolvedValue({});
+    mockGetUser = jest.fn();
+    mockUseRouter.mockReturnValue({ replace: mockReplace, push: jest.fn(), refresh: jest.fn() } as never);
+    mockCreateClient.mockReturnValue({
+      auth: { getUser: mockGetUser, signOut: mockSignOut },
+    } as never);
   });
 
   it("redirects to /auth/login when user is not authenticated", async () => {
-    const mockGetUser = jest.fn().mockResolvedValue({ data: { user: null } });
-    mockCreateClient.mockResolvedValue({
-      auth: { getUser: mockGetUser },
-    } as never);
-
-    await WelcomePage();
-
-    expect(mockRedirect).toHaveBeenCalledWith("/auth/login");
+    mockGetUser.mockResolvedValue({ data: { user: null } });
+    render(<WelcomePage />);
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith("/auth/login");
+    });
   });
 
   it("renders welcome message with user email when authenticated", async () => {
-    const mockGetUser = jest.fn().mockResolvedValue({
+    mockGetUser.mockResolvedValue({
       data: { user: { id: "user-123", email: "test@example.com" } },
     });
-    mockCreateClient.mockResolvedValue({
-      auth: { getUser: mockGetUser },
-    } as never);
-
-    const component = await WelcomePage();
-    render(component as React.ReactElement);
-
-    expect(screen.getByRole("heading", { name: /welcome to rote/i })).toBeInTheDocument();
+    render(<WelcomePage />);
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: /welcome to rote/i })).toBeInTheDocument();
+    });
     expect(screen.getByText(/test@example\.com/)).toBeInTheDocument();
   });
 
   it("renders sign out button when authenticated", async () => {
-    const mockGetUser = jest.fn().mockResolvedValue({
+    mockGetUser.mockResolvedValue({
       data: { user: { id: "user-123", email: "user@example.com" } },
     });
-    mockCreateClient.mockResolvedValue({
-      auth: { getUser: mockGetUser },
-    } as never);
+    render(<WelcomePage />);
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /sign out/i })).toBeInTheDocument();
+    });
+  });
 
-    const component = await WelcomePage();
-    render(component as React.ReactElement);
+  it("renders Go to Items and Start Session links when authenticated", async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: "user-123", email: "user@example.com" } },
+    });
+    render(<WelcomePage />);
+    await waitFor(() => {
+      expect(screen.getByRole("link", { name: /go to items/i })).toBeInTheDocument();
+    });
+    expect(screen.getByRole("link", { name: /start session/i })).toBeInTheDocument();
+  });
 
-    expect(screen.getByRole("button", { name: /sign out/i })).toBeInTheDocument();
+  it("calls signOut and redirects to /auth/login on sign out", async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: "user-123", email: "user@example.com" } },
+    });
+    render(<WelcomePage />);
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /sign out/i })).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole("button", { name: /sign out/i }));
+    await waitFor(() => {
+      expect(mockSignOut).toHaveBeenCalled();
+      expect(mockReplace).toHaveBeenCalledWith("/auth/login");
+    });
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import Link from "next/link";
 import { Item } from "@/lib/items/sessionPool";
@@ -59,6 +59,27 @@ export default function SessionPage() {
   const [nextReviewOverrides, setNextReviewOverrides] = useState<Map<string, string>>(new Map());
   // all cards loaded for this session (used to look up keys on confirm screen)
   const [allSessionCards, setAllSessionCards] = useState<Map<string, Item>>(new Map());
+
+  // tracks the last serialized results snapshot for auto-save deduplication
+  const lastSavedResultsRef = useRef<string>("");
+
+  // Auto-save: periodically persist results to prevent data loss on browser close
+  useEffect(() => {
+    if (phase !== "review") return;
+    const id = setInterval(() => {
+      if (results.size === 0) return;
+      const serialized = JSON.stringify(Array.from(results.entries()));
+      if (serialized === lastSavedResultsRef.current) return;
+      lastSavedResultsRef.current = serialized;
+      fetch("/api/session/complete", {
+        method: "POST",
+        keepalive: true,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ results: Array.from(results.values()) }),
+      }).catch(() => {});
+    }, 30000);
+    return () => clearInterval(id);
+  }, [phase, results]);
 
   useEffect(() => {
     if (phase !== "loading") return;

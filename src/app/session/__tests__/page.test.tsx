@@ -49,6 +49,28 @@ describe("SessionPage", () => {
     render(<SessionPage />);
     expect(screen.getByRole("heading", { name: /start session/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /start session/i })).toBeInTheDocument();
+    expect(screen.getByText(/prefetch old cards/i)).toBeInTheDocument();
+    expect(screen.getByText(/prefetch new cards/i)).toBeInTheDocument();
+  });
+
+  it("calls API with fetchOld/fetchNew values (not maxOld/maxNew)", async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => [],
+    } as Response);
+
+    render(<SessionPage />);
+
+    // Default fetchOld=100, fetchNew=100
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /start session/i }));
+    });
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("old=100&new=100")
+      );
+    });
   });
 
   it("shows loading state after clicking Start Session", async () => {
@@ -502,6 +524,85 @@ describe("SessionPage", () => {
       // Just verify it's a valid date string
       const value = (dateInput as HTMLInputElement).value;
       expect(value).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    });
+  });
+
+  describe("Auto-save", () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it("fires fetch to /api/session/complete after 30 seconds when there are results", async () => {
+      const cards = [makeCard("1"), makeCard("2")];
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => cards,
+      } as Response);
+
+      await renderAndStart();
+      await waitFor(() => {
+        const hasCard =
+          screen.queryByText("Key 1") !== null ||
+          screen.queryByText("Key 2") !== null;
+        expect(hasCard).toBe(true);
+      });
+
+      // Record a result by clicking Remembered on one card
+      fireEvent.click(screen.getByRole("button", { name: /show answer/i }));
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /remembered/i }));
+      });
+
+      // Clear any calls so far (session load fetch)
+      mockFetch.mockClear();
+
+      // Advance 30 seconds
+      await act(async () => {
+        jest.advanceTimersByTime(30000);
+      });
+
+      // Should have called /api/session/complete
+      const autoSaveCalls = mockFetch.mock.calls.filter(
+        (call) => call[0] === "/api/session/complete"
+      );
+      expect(autoSaveCalls.length).toBe(1);
+      expect(autoSaveCalls[0][1]).toMatchObject({
+        method: "POST",
+        keepalive: true,
+        headers: { "Content-Type": "application/json" },
+      });
+      const body = JSON.parse(autoSaveCalls[0][1]?.body as string);
+      expect(body.results).toHaveLength(1);
+      expect(body.results[0]).not.toHaveProperty("next_review_at_override");
+    });
+
+    it("does not fire fetch when results are empty after 30 seconds", async () => {
+      const cards = [makeCard("1")];
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => cards,
+      } as Response);
+
+      await renderAndStart();
+      await waitFor(() => screen.getByText("Key 1"));
+
+      // Clear fetch calls (session load)
+      mockFetch.mockClear();
+
+      // Advance 30 seconds without reviewing any cards
+      await act(async () => {
+        jest.advanceTimersByTime(30000);
+      });
+
+      // Should NOT have called /api/session/complete
+      const autoSaveCalls = mockFetch.mock.calls.filter(
+        (call) => call[0] === "/api/session/complete"
+      );
+      expect(autoSaveCalls.length).toBe(0);
     });
   });
 

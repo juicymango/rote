@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import Link from "next/link";
-import { Item } from "@/lib/items/sessionPool";
+import { Item, DEFAULT_FETCH_OLD_COUNT, DEFAULT_FETCH_NEW_COUNT } from "@/lib/items/sessionPool";
 import { CardOutcome, computeIntervalUpdate } from "@/lib/items/spacedRepetition";
 
 interface ResultEntry {
@@ -38,6 +38,8 @@ export default function SessionPage() {
   const [phase, setPhase] = useState<Phase>("setup");
   const [maxOld, setMaxOld] = useState(10);
   const [maxNew, setMaxNew] = useState(10);
+  const [fetchOld, setFetchOld] = useState(DEFAULT_FETCH_OLD_COUNT);
+  const [fetchNew, setFetchNew] = useState(DEFAULT_FETCH_NEW_COUNT);
   const [pool, setPool] = useState<Item[]>([]);
   const [pending, setPending] = useState<Item[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -60,11 +62,32 @@ export default function SessionPage() {
   // all cards loaded for this session (used to look up keys on confirm screen)
   const [allSessionCards, setAllSessionCards] = useState<Map<string, Item>>(new Map());
 
+  // tracks the last serialized results snapshot for auto-save deduplication
+  const lastSavedResultsRef = useRef<string>("");
+
+  // Auto-save: periodically persist results to prevent data loss on browser close
+  useEffect(() => {
+    if (phase !== "review") return;
+    const id = setInterval(() => {
+      if (results.size === 0) return;
+      const serialized = JSON.stringify(Array.from(results.entries()));
+      if (serialized === lastSavedResultsRef.current) return;
+      lastSavedResultsRef.current = serialized;
+      fetch("/api/session/complete", {
+        method: "POST",
+        keepalive: true,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ results: Array.from(results.values()) }),
+      }).catch(() => {});
+    }, 30000);
+    return () => clearInterval(id);
+  }, [phase, results]);
+
   useEffect(() => {
     if (phase !== "loading") return;
     async function loadSession() {
       try {
-        const res = await fetch(`/api/session?old=${maxOld}&new=${maxNew}`);
+        const res = await fetch(`/api/session?old=${fetchOld}&new=${fetchNew}`);
         if (!res.ok) {
           setPhase("empty");
           return;
@@ -87,7 +110,7 @@ export default function SessionPage() {
       }
     }
     loadSession();
-  }, [phase, maxOld, maxNew]);
+  }, [phase, maxOld, maxNew, fetchOld, fetchNew]);
 
   const finishSession = useCallback(
     (finalResults: Map<string, ResultEntry>) => {
@@ -287,6 +310,32 @@ export default function SessionPage() {
                 max={50}
                 value={maxNew}
                 onChange={(e) => setMaxNew(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Prefetch old cards
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={500}
+                value={fetchOld}
+                onChange={(e) => setFetchOld(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Prefetch new cards
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={500}
+                value={fetchNew}
+                onChange={(e) => setFetchNew(Math.max(1, parseInt(e.target.value, 10) || 1))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
               />
             </div>

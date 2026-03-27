@@ -20,13 +20,13 @@ describe("buildSessionPool", () => {
     expect(buildSessionPool([], TODAY)).toHaveLength(0);
   });
 
-  it("includes new cards (consecutive_correct=0, next_review_at=today)", () => {
+  it("includes new cards (consecutive_correct=0)", () => {
     const items = [makeItem({ id: "1" }), makeItem({ id: "2" })];
     const pool = buildSessionPool(items, TODAY);
     expect(pool).toHaveLength(2);
   });
 
-  it("includes old cards (next_review_at <= today, not new)", () => {
+  it("includes old cards (consecutive_correct > 0, next_review_at <= today)", () => {
     const old = makeItem({
       id: "old-1",
       consecutive_correct: 1,
@@ -35,6 +35,28 @@ describe("buildSessionPool", () => {
     const pool = buildSessionPool([old], TODAY);
     expect(pool).toHaveLength(1);
     expect(pool[0].id).toBe("old-1");
+  });
+
+  it("includes old cards with future next_review_at (upcoming)", () => {
+    const upcoming = makeItem({
+      id: "upcoming-1",
+      consecutive_correct: 1,
+      next_review_at: "2026-03-20",
+    });
+    const pool = buildSessionPool([upcoming], TODAY);
+    expect(pool).toHaveLength(1);
+    expect(pool[0].id).toBe("upcoming-1");
+  });
+
+  it("old cards sorted by next_review_at ASC (due cards before upcoming)", () => {
+    const items = [
+      makeItem({ id: "upcoming", consecutive_correct: 1, next_review_at: "2026-03-20" }),
+      makeItem({ id: "due", consecutive_correct: 1, next_review_at: "2026-03-10" }),
+    ];
+    // Use maxOld=1 to pick only the soonest one
+    const pool = buildSessionPool(items, TODAY, 1, 0);
+    expect(pool).toHaveLength(1);
+    expect(pool[0].id).toBe("due");
   });
 
   it("caps old cards at 10", () => {
@@ -72,18 +94,6 @@ describe("buildSessionPool", () => {
     expect(pool).toHaveLength(20);
   });
 
-  it("includes future cards as upcoming fallback when no new cards exist", () => {
-    // With upcoming-card fallback, future cards are now included to fill new-side slots
-    const future = makeItem({
-      id: "future",
-      consecutive_correct: 1,
-      next_review_at: "2026-03-20",
-    });
-    const pool = buildSessionPool([future], TODAY);
-    expect(pool).toHaveLength(1);
-    expect(pool[0].id).toBe("future");
-  });
-
   it("does not duplicate items", () => {
     const items = Array.from({ length: 20 }, (_, i) =>
       makeItem({ id: `item-${i}` })
@@ -94,137 +104,14 @@ describe("buildSessionPool", () => {
     expect(unique.size).toBe(ids.length);
   });
 
-  describe("upcoming-card fallback", () => {
-    it("fills remaining new slots with upcoming cards when new cards exhausted", () => {
-      const newCards = [
-        makeItem({ id: "new-1" }),
-        makeItem({ id: "new-2" }),
-      ];
-      const upcomingCards = [
-        makeItem({
-          id: "upcoming-1",
-          consecutive_correct: 1,
-          next_review_at: "2026-03-16",
-        }),
-        makeItem({
-          id: "upcoming-2",
-          consecutive_correct: 1,
-          next_review_at: "2026-03-17",
-        }),
-        makeItem({
-          id: "upcoming-3",
-          consecutive_correct: 1,
-          next_review_at: "2026-03-18",
-        }),
-      ];
-      const pool = buildSessionPool([...newCards, ...upcomingCards], TODAY);
-
-      // Should have 2 new + up to 8 upcoming (to reach 10 total new-side cards)
-      expect(pool.length).toBe(5);
-      const ids = pool.map((i) => i.id);
-      expect(ids).toContain("new-1");
-      expect(ids).toContain("new-2");
-      expect(ids).toContain("upcoming-1");
-      expect(ids).toContain("upcoming-2");
-      expect(ids).toContain("upcoming-3");
-    });
-
-    it("selects soonest-due upcoming cards first", () => {
-      const newCards = [makeItem({ id: "new-1" })];
-      const upcomingCards = [
-        makeItem({
-          id: "upcoming-far",
-          consecutive_correct: 1,
-          next_review_at: "2026-03-25",
-        }),
-        makeItem({
-          id: "upcoming-near",
-          consecutive_correct: 1,
-          next_review_at: "2026-03-16",
-        }),
-        makeItem({
-          id: "upcoming-mid",
-          consecutive_correct: 1,
-          next_review_at: "2026-03-20",
-        }),
-      ];
-      const pool = buildSessionPool([...newCards, ...upcomingCards], TODAY);
-
-      const ids = pool.map((i) => i.id);
-      expect(ids).toContain("new-1");
-      expect(ids).toContain("upcoming-near");
-      expect(ids).toContain("upcoming-mid");
-      // Should not include the farthest one if we only need 3 total
-      expect(ids).toContain("upcoming-far");
-      expect(pool.length).toBe(4);
-    });
-
-    it("does not add upcoming cards if 10 new cards already exist", () => {
-      const newCards = Array.from({ length: 10 }, (_, i) =>
-        makeItem({ id: `new-${i}` })
-      );
-      const upcomingCards = [
-        makeItem({
-          id: "upcoming-1",
-          consecutive_correct: 1,
-          next_review_at: "2026-03-16",
-        }),
-      ];
-      const pool = buildSessionPool([...newCards, ...upcomingCards], TODAY);
-
-      // Should only have the 10 new cards, no upcoming
-      expect(pool.length).toBe(10);
-      const ids = pool.map((i) => i.id);
-      expect(ids).not.toContain("upcoming-1");
-    });
-
-    it("combines old cards, new cards, and upcoming fallback to reach 10+10", () => {
-      const oldCards = Array.from({ length: 10 }, (_, i) =>
-        makeItem({
-          id: `old-${i}`,
-          consecutive_correct: 1,
-          next_review_at: "2026-03-14",
-        })
-      );
-      const newCards = [
-        makeItem({ id: "new-1" }),
-        makeItem({ id: "new-2" }),
-      ];
-      const upcomingCards = Array.from({ length: 10 }, (_, i) =>
-        makeItem({
-          id: `upcoming-${i}`,
-          consecutive_correct: 1,
-          next_review_at: `2026-03-${16 + i}`,
-        })
-      );
-      const pool = buildSessionPool(
-        [...oldCards, ...newCards, ...upcomingCards],
-        TODAY
-      );
-
-      // Should have 10 old + 2 new + 8 upcoming = 20 total
-      expect(pool.length).toBe(20);
-      const ids = pool.map((i) => i.id);
-      expect(ids.filter((id) => id.startsWith("old-"))).toHaveLength(10);
-      expect(ids.filter((id) => id.startsWith("new-"))).toHaveLength(2);
-      expect(ids.filter((id) => id.startsWith("upcoming-"))).toHaveLength(8);
-    });
-
-    it("handles case with no new cards and fills entirely from upcoming", () => {
-      const upcomingCards = Array.from({ length: 15 }, (_, i) =>
-        makeItem({
-          id: `upcoming-${i}`,
-          consecutive_correct: 1,
-          next_review_at: `2026-03-${16 + i}`,
-        })
-      );
-      const pool = buildSessionPool(upcomingCards, TODAY);
-
-      // Should have 10 upcoming cards (no new, no old)
-      expect(pool.length).toBe(10);
-      const ids = pool.map((i) => i.id);
-      expect(ids.every((id) => id.startsWith("upcoming-"))).toBe(true);
-    });
+  it("includes mix of due and upcoming old cards", () => {
+    const due = makeItem({ id: "due", consecutive_correct: 2, next_review_at: "2026-03-10" });
+    const upcoming = makeItem({ id: "upcoming", consecutive_correct: 1, next_review_at: "2026-03-25" });
+    const pool = buildSessionPool([due, upcoming], TODAY);
+    expect(pool).toHaveLength(2);
+    const ids = pool.map((i) => i.id);
+    expect(ids).toContain("due");
+    expect(ids).toContain("upcoming");
   });
 
   describe("dynamic pool size (maxOld / maxNew)", () => {
@@ -252,20 +139,6 @@ describe("buildSessionPool", () => {
       expect(ids.every((id) => id.startsWith("new-"))).toBe(true);
     });
 
-    it("fills new slots with upcoming cards up to custom maxNew", () => {
-      const newCards = [makeItem({ id: "new-1" })];
-      const upcomingCards = Array.from({ length: 5 }, (_, i) =>
-        makeItem({
-          id: `upcoming-${i}`,
-          consecutive_correct: 1,
-          next_review_at: `2026-03-${16 + i}`,
-        })
-      );
-      const pool = buildSessionPool([...newCards, ...upcomingCards], TODAY, 10, 4);
-      // Should have 1 new + 3 upcoming = 4 total new-side cards
-      expect(pool.length).toBe(4);
-    });
-
     it("returns up to maxOld + maxNew total cards", () => {
       const oldCards = Array.from({ length: 10 }, (_, i) =>
         makeItem({
@@ -279,6 +152,18 @@ describe("buildSessionPool", () => {
       );
       const pool = buildSessionPool([...oldCards, ...newCards], TODAY, 3, 5);
       expect(pool.length).toBe(8); // 3 old + 5 new
+    });
+
+    it("upcoming old cards count toward maxOld", () => {
+      const upcomingOld = Array.from({ length: 5 }, (_, i) =>
+        makeItem({
+          id: `upcoming-${i}`,
+          consecutive_correct: 1,
+          next_review_at: `2026-03-${20 + i}`,
+        })
+      );
+      const pool = buildSessionPool(upcomingOld, TODAY, 3, 0);
+      expect(pool.length).toBe(3);
     });
   });
 });

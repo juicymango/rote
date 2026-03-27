@@ -49,6 +49,28 @@ describe("SessionPage", () => {
     render(<SessionPage />);
     expect(screen.getByRole("heading", { name: /start session/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /start session/i })).toBeInTheDocument();
+    expect(screen.getByText(/prefetch old cards/i)).toBeInTheDocument();
+    expect(screen.getByText(/prefetch new cards/i)).toBeInTheDocument();
+  });
+
+  it("calls API with fetchOld/fetchNew values (not maxOld/maxNew)", async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => [],
+    } as Response);
+
+    render(<SessionPage />);
+
+    // Default fetchOld=100, fetchNew=100
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /start session/i }));
+    });
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("old=100&new=100")
+      );
+    });
   });
 
   it("shows loading state after clicking Start Session", async () => {

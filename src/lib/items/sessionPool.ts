@@ -10,10 +10,12 @@ export interface Item {
 
 export const DEFAULT_OLD_COUNT = 10;
 export const DEFAULT_NEW_COUNT = 10;
+export const DEFAULT_FETCH_OLD_COUNT = 100;
+export const DEFAULT_FETCH_NEW_COUNT = 100;
 
 /** Returns up to maxOld old + maxNew new cards, combined and shuffled.
- * If fewer than maxNew new cards exist, remaining slots are filled with upcoming cards
- * (cards where next_review_at > today), ordered by next_review_at ASC.
+ * Old cards: consecutive_correct > 0, sorted by next_review_at ASC (includes upcoming).
+ * New cards: consecutive_correct === 0, sorted by created_at ASC.
  */
 export function buildSessionPool(
   allItems: Item[],
@@ -21,14 +23,11 @@ export function buildSessionPool(
   maxOld: number = DEFAULT_OLD_COUNT,
   maxNew: number = DEFAULT_NEW_COUNT
 ): Item[] {
-  const todayStr = today.toISOString().slice(0, 10);
-  const isNew = (i: Item) =>
-    i.consecutive_correct === 0 && i.next_review_at === todayStr;
-  const isDue = (i: Item) => !isNew(i) && i.next_review_at <= todayStr;
-  const isUpcoming = (i: Item) => i.next_review_at > todayStr;
+  const isOld = (i: Item) => i.consecutive_correct > 0;
+  const isNew = (i: Item) => i.consecutive_correct === 0;
 
   const oldCards = allItems
-    .filter(isDue)
+    .filter(isOld)
     .sort((a, b) => a.next_review_at.localeCompare(b.next_review_at))
     .slice(0, maxOld);
 
@@ -37,20 +36,7 @@ export function buildSessionPool(
     .sort((a, b) => a.created_at.localeCompare(b.created_at))
     .slice(0, maxNew);
 
-  // If fewer than maxNew new cards, fill remaining slots with upcoming cards
-  const newSlotsNeeded = maxNew - newCards.length;
-  let finalNewCards = newCards;
-
-  if (newSlotsNeeded > 0) {
-    const upcomingCards = allItems
-      .filter(isUpcoming)
-      .sort((a, b) => a.next_review_at.localeCompare(b.next_review_at))
-      .slice(0, newSlotsNeeded);
-
-    finalNewCards = [...newCards, ...upcomingCards];
-  }
-
-  return shuffle([...oldCards, ...finalNewCards]);
+  return shuffle([...oldCards, ...newCards]);
 }
 
 function shuffle<T>(arr: T[]): T[] {

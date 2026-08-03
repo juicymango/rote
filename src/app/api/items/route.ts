@@ -2,6 +2,14 @@ import { createClientForRequest } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { mergeValues } from "@/lib/items/mergeValues";
 
+const DEFAULT_PAGE_SIZE = 50;
+const MAX_PAGE_SIZE = 100;
+
+function parsePositiveInt(value: string | null, fallback: number) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 export async function GET(request: Request) {
   const supabase = await createClientForRequest(request);
   const {
@@ -9,13 +17,50 @@ export async function GET(request: Request) {
   } = await supabase.auth.getUser();
   if (!user) return new NextResponse("Unauthorized", { status: 401 });
 
-  const { data, error } = await supabase
+  const url = new URL(request.url);
+  const hasPaginationParams =
+    url.searchParams.has("page") || url.searchParams.has("pageSize");
+
+  // Keep the array response for existing non-UI callers while the list page
+  // opts into the paginated response below.
+  if (!hasPaginationParams) {
+    const { data, error } = await supabase
+      .from("items")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) return new NextResponse(error.message, { status: 500 });
+    return NextResponse.json(data);
+  }
+
+  const page = parsePositiveInt(url.searchParams.get("page"), 1);
+  const pageSize = Math.min(
+    parsePositiveInt(url.searchParams.get("pageSize"), DEFAULT_PAGE_SIZE),
+    MAX_PAGE_SIZE
+  );
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  const { data, error, count } = await supabase
     .from("items")
-    .select("*")
-    .order("created_at", { ascending: false });
+    .select(
+      "id, key, value, created_at, next_review_at, interval_days, consecutive_correct",
+      { count: "exact" }
+    )
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range(from, to);
 
   if (error) return new NextResponse(error.message, { status: 500 });
-  return NextResponse.json(data);
+
+  const total = count ?? 0;
+  return NextResponse.json({
+    items: data ?? [],
+    page,
+    pageSize,
+    total,
+    hasNext: from + (data?.length ?? 0) < total,
+  });
 }
 
 export async function POST(request: Request) {

@@ -1,12 +1,8 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 jest.mock("next/navigation", () => ({
   useRouter: jest.fn(),
-}));
-
-jest.mock("@/lib/supabase/client", () => ({
-  createClient: jest.fn(),
 }));
 
 jest.mock("next/link", () => ({
@@ -28,53 +24,36 @@ jest.mock("@/components/items/ItemRow", () => ({
 
 import ItemsPage from "../page";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 
 const mockUseRouter = jest.mocked(useRouter);
-const mockCreateClient = jest.mocked(createClient);
 
 describe("ItemsPage", () => {
   let mockReplace: jest.Mock;
-  let mockGetUser: jest.Mock;
+  let mockFetch: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockReplace = jest.fn();
-    mockGetUser = jest.fn();
+    mockFetch = jest.fn();
     mockUseRouter.mockReturnValue({ replace: mockReplace, push: jest.fn(), refresh: jest.fn() } as never);
-    mockCreateClient.mockReturnValue({
-      auth: { getUser: mockGetUser },
-    } as never);
+    global.fetch = mockFetch as unknown as typeof fetch;
   });
 
-  it("redirects to /auth/login when unauthenticated", async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } });
+  it("shows loading state initially", () => {
+    mockFetch.mockReturnValue(new Promise(() => {})); // never resolves
     render(<ItemsPage />);
-    await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith("/auth/login");
-    });
+    expect(screen.getByText(/loading/i)).toBeInTheDocument();
   });
 
-  it("shows loading state initially", async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
-    global.fetch = jest.fn().mockReturnValue(new Promise(() => {})); // never resolves
-    render(<ItemsPage />);
-    // loading state shown while auth check is still pending (before getUser resolves)
-    // After auth resolves, loading is shown while fetch is pending
-    await waitFor(() => {
-      expect(screen.getByText(/loading/i)).toBeInTheDocument();
-    });
-  });
-
-  it("renders item list when authenticated", async () => {
+  it("renders the first page of items", async () => {
     const items = [
       { id: "1", key: "Question 1", value: "Answer 1", created_at: "2026-03-01T00:00:00Z", next_review_at: "2026-03-01", interval_days: 1, consecutive_correct: 0 },
       { id: "2", key: "Question 2", value: "Answer 2", created_at: "2026-03-02T00:00:00Z", next_review_at: "2026-03-02", interval_days: 2, consecutive_correct: 1 },
     ];
-    mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
-    global.fetch = jest.fn().mockResolvedValue({
+    mockFetch.mockResolvedValue({
       status: 200,
-      json: async () => items,
+      ok: true,
+      json: async () => ({ items, page: 1, pageSize: 50, total: 2, hasNext: false }),
     } as never);
     render(<ItemsPage />);
 
@@ -82,13 +61,14 @@ describe("ItemsPage", () => {
       expect(screen.getByText("My Items")).toBeInTheDocument();
       expect(screen.getAllByTestId("item-row")).toHaveLength(2);
     });
+    expect(mockFetch).toHaveBeenCalledWith("/api/items?page=1&pageSize=50");
   });
 
   it("shows empty state message when no items", async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
-    global.fetch = jest.fn().mockResolvedValue({
+    mockFetch.mockResolvedValue({
       status: 200,
-      json: async () => [],
+      ok: true,
+      json: async () => ({ items: [], page: 1, pageSize: 50, total: 0, hasNext: false }),
     } as never);
     render(<ItemsPage />);
 
@@ -98,10 +78,10 @@ describe("ItemsPage", () => {
   });
 
   it("shows Start Session, Add Item, and Bulk Import links", async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
-    global.fetch = jest.fn().mockResolvedValue({
+    mockFetch.mockResolvedValue({
       status: 200,
-      json: async () => [],
+      ok: true,
+      json: async () => ({ items: [], page: 1, pageSize: 50, total: 0, hasNext: false }),
     } as never);
     render(<ItemsPage />);
 
@@ -112,10 +92,49 @@ describe("ItemsPage", () => {
     });
   });
 
+  it("loads the next page", async () => {
+    const firstPageItem = { id: "1", key: "Question 1", value: "Answer 1" };
+    const secondPageItem = { id: "51", key: "Question 51", value: "Answer 51" };
+    mockFetch
+      .mockResolvedValueOnce({
+        status: 200,
+        ok: true,
+        json: async () => ({
+          items: [firstPageItem],
+          page: 1,
+          pageSize: 50,
+          total: 51,
+          hasNext: true,
+        }),
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        ok: true,
+        json: async () => ({
+          items: [secondPageItem],
+          page: 2,
+          pageSize: 50,
+          total: 51,
+          hasNext: false,
+        }),
+      });
+    render(<ItemsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Question 1")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Question 51")).toBeInTheDocument();
+    });
+    expect(mockFetch).toHaveBeenNthCalledWith(2, "/api/items?page=2&pageSize=50");
+  });
+
   it("redirects to /auth/login when fetch returns 401", async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
-    global.fetch = jest.fn().mockResolvedValue({
+    mockFetch.mockResolvedValue({
       status: 401,
+      ok: false,
       json: async () => null,
     } as never);
     render(<ItemsPage />);

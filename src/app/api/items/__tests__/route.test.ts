@@ -23,11 +23,13 @@ const mockCreateClient = jest.mocked(createClient);
  * - insertData: returned by POST /api/items (insert → select → single)
  * - maybeSingleData: returned by duplicate-key check queries (.maybySingle())
  * - updateData: returned by PUT /api/items/[id] (update → select → single)
+ * - selectCount: returned by paginated GET /api/items queries
  * - dbError: propagated to all operations unless overridden
  */
 function makeSupabaseMock({
   user = { id: "user-1", email: "test@example.com" },
   selectData = [] as unknown[],
+  selectCount = selectData.length,
   insertData = null as unknown,
   maybeSingleData = null as unknown,
   updateData = null as unknown,
@@ -51,11 +53,17 @@ function makeSupabaseMock({
   const mockInsertSelect = jest.fn().mockReturnValue({ single: mockSingle });
   const mockInsert = jest.fn().mockReturnValue({ select: mockInsertSelect });
 
-  // For GET: select().order()
-  const mockOrder = jest
+  // For GET: select().order() and select().order().order().range()
+  const listResult = { data: selectData, error: dbError, count: selectCount };
+  const mockRange = jest
     .fn()
-    .mockResolvedValue({ data: selectData, error: dbError });
-  const mockSelectQ = jest.fn().mockReturnValue({ order: mockOrder });
+    .mockResolvedValue(listResult);
+  const listQuery = Object.assign(Promise.resolve(listResult), {
+    order: jest.fn(),
+    range: mockRange,
+  });
+  listQuery.order.mockReturnValue(listQuery);
+  const mockSelectQ = jest.fn().mockReturnValue(listQuery);
 
   // For DELETE: delete().eq()
   const mockDelete = jest.fn().mockReturnValue({
@@ -85,7 +93,11 @@ function makeSupabaseMock({
           select: (cols: string) => {
             // List query (GET): select("*") or select() with no specific single-id pattern
             // Dup-key check: select("id") or select("id, value")
-            if (cols === "*" || cols === undefined) {
+            if (
+              cols === "*" ||
+              cols === undefined ||
+              cols.startsWith("id, key")
+            ) {
               return mockSelectQ();
             }
             // duplicate check selects (id, or id + value)
@@ -103,6 +115,7 @@ function makeSupabaseMock({
     _mockInsert: mockInsert,
     _mockUpdate: mockUpdate,
     _mockMaybeSingle: mockMaybeSingle,
+    _mockRange: mockRange,
   };
 }
 
@@ -111,17 +124,36 @@ describe("GET /api/items", () => {
     mockCreateClient.mockResolvedValue({
       auth: { getUser: jest.fn().mockResolvedValue({ data: { user: null } }) },
     } as never);
-    const res = await GET();
+    const res = await GET(new Request("http://localhost/api/items"));
     expect(res.status).toBe(401);
   });
 
   it("returns items array when authenticated", async () => {
     const items = [{ id: "1", key: "q", value: "a" }];
     mockCreateClient.mockResolvedValue(makeSupabaseMock({ selectData: items }) as never);
-    const res = await GET();
+    const res = await GET(new Request("http://localhost/api/items"));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toEqual(items);
+  });
+
+  it("returns a paginated response when page parameters are provided", async () => {
+    const items = [{ id: "3", key: "q", value: "a" }];
+    const mock = makeSupabaseMock({ selectData: items, selectCount: 5 });
+    mockCreateClient.mockResolvedValue(mock as never);
+    const res = await GET(
+      new Request("http://localhost/api/items?page=2&pageSize=2")
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      items,
+      page: 2,
+      pageSize: 2,
+      total: 5,
+      hasNext: true,
+    });
+    expect(mock._mockRange).toHaveBeenCalledWith(2, 3);
   });
 });
 

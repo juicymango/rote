@@ -1,7 +1,7 @@
-const nextJest = require("next/jest");
+import nextJest from "next/jest.js";
 
 const createJestConfig = nextJest({
-  // Provide the path to your Next.js app to load next.config.js and .env files in your test environment
+  // Provide the path to your Next.js app to load next.config.js and .env files in the test environment
   dir: "./",
 });
 
@@ -22,4 +22,4 @@ const customJestConfig = {
   testPathIgnorePatterns: ["/node_modules/", "/mcp-server/"],
 };
 
-module.exports = createJestConfig(customJestConfig);
+export default createJestConfig(customJestConfig);

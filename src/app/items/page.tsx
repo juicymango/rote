@@ -3,8 +3,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
 import ItemRow from "@/components/items/ItemRow";
+
+const PAGE_SIZE = 50;
 
 interface Item {
   id: string;
@@ -16,32 +17,57 @@ interface Item {
   consecutive_correct: number;
 }
 
+interface ItemsResponse {
+  items: Item[];
+  page: number;
+  pageSize: number;
+  total: number;
+  hasNext: boolean;
+}
+
 export default function ItemsPage() {
   const router = useRouter();
   const [items, setItems] = useState<Item[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [hasNext, setHasNext] = useState(false);
 
-  const fetchItems = useCallback(async () => {
-    const res = await fetch("/api/items");
+  const fetchItems = useCallback(async (requestedPage: number) => {
+    setLoading(true);
+    const res = await fetch(`/api/items?page=${requestedPage}&pageSize=${PAGE_SIZE}`);
     if (res.status === 401) {
       router.replace("/auth/login");
+      setLoading(false);
       return;
     }
-    const data = await res.json();
-    setItems(data);
+
+    if (!res.ok) {
+      setItems([]);
+      setTotal(0);
+      setHasNext(false);
+      setLoading(false);
+      return;
+    }
+
+    const data = (await res.json()) as ItemsResponse;
+    setItems(data.items ?? []);
+    setPage(data.page);
+    setTotal(data.total);
+    setHasNext(data.hasNext);
     setLoading(false);
   }, [router]);
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) {
-        router.replace("/auth/login");
-      } else {
-        fetchItems();
-      }
-    });
-  }, [router, fetchItems]);
+    void Promise.resolve().then(() => fetchItems(1));
+  }, [fetchItems]);
+
+  const handleDeleted = useCallback(() => {
+    const targetPage = items?.length === 1 && page > 1 ? page - 1 : page;
+    void fetchItems(targetPage);
+  }, [fetchItems, items?.length, page]);
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -93,11 +119,37 @@ export default function ItemsPage() {
                 nextReviewAt={item.next_review_at}
                 intervalDays={item.interval_days}
                 consecutiveCorrect={item.consecutive_correct}
-                onDeleted={fetchItems}
+                onDeleted={handleDeleted}
               />
             ))
           )}
         </div>
+
+        {total > 0 && (
+          <div className="flex items-center justify-between gap-4 mt-4">
+            <p className="text-sm text-gray-500" aria-live="polite">
+              Page {page} of {totalPages} · {total} items
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={loading || page <= 1}
+                onClick={() => void fetchItems(page - 1)}
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={loading || !hasNext}
+                onClick={() => void fetchItems(page + 1)}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

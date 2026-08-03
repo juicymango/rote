@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import ReactMarkdown from "react-markdown";
 import Link from "next/link";
 import { Item, DEFAULT_FETCH_OLD_COUNT, DEFAULT_FETCH_NEW_COUNT } from "@/lib/items/sessionPool";
 import { CardOutcome, computeIntervalUpdate } from "@/lib/items/spacedRepetition";
+import MarkdownValue from "@/components/items/MarkdownValue";
 
 interface ResultEntry {
   id: string;
@@ -633,7 +633,7 @@ export default function SessionPage() {
                 ) : (
                   <>
                     <div className="prose prose-sm max-w-none text-left mb-3">
-                      <ReactMarkdown>{card.value}</ReactMarkdown>
+                      <MarkdownValue>{card.value}</MarkdownValue>
                     </div>
                     <button
                       onClick={handleEdit}

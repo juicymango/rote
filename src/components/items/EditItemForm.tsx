@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import ReactMarkdown from "react-markdown";
 import Link from "next/link";
+import MarkdownValue from "@/components/items/MarkdownValue";
 
 interface Item {
   id: string;
@@ -128,7 +128,7 @@ export default function EditItemForm({ item }: EditItemFormProps) {
             <div>
               <p className="text-sm font-medium text-gray-700 mb-1">Preview</p>
               <div className="prose prose-sm max-w-none p-3 border border-gray-200 rounded-md bg-gray-50">
-                <ReactMarkdown>{value}</ReactMarkdown>
+                <MarkdownValue>{value}</MarkdownValue>
               </div>
             </div>
           )}

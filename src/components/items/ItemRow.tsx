@@ -46,7 +46,7 @@ export default function ItemRow({
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <p className="font-medium text-gray-900">{itemKey}</p>
-          <p className="text-sm text-gray-500 mt-1">{valuePreview}</p>
+          <p className="text-sm text-gray-500 mt-1 whitespace-pre-wrap">{valuePreview}</p>
           <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-400">
             <span>created: {createdAt.slice(0, 10)}</span>
             <span>next review: {nextReviewAt}</span>

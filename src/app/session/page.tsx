@@ -64,6 +64,8 @@ export default function SessionPage() {
 
   // tracks the last serialized results snapshot for auto-save deduplication
   const lastSavedResultsRef = useRef<string>("");
+  const autoSaveInFlightRef = useRef(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Auto-save: periodically persist results to prevent data loss on browser close
   useEffect(() => {
@@ -72,13 +74,28 @@ export default function SessionPage() {
       if (results.size === 0) return;
       const serialized = JSON.stringify(Array.from(results.entries()));
       if (serialized === lastSavedResultsRef.current) return;
-      lastSavedResultsRef.current = serialized;
+      if (autoSaveInFlightRef.current) return;
+
+      autoSaveInFlightRef.current = true;
       fetch("/api/session/complete", {
         method: "POST",
         keepalive: true,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ results: Array.from(results.values()) }),
-      }).catch(() => {});
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Failed to save review progress");
+          }
+          lastSavedResultsRef.current = serialized;
+          setSaveError(null);
+        })
+        .catch(() => {
+          setSaveError("Review progress could not be saved. It will be retried.");
+        })
+        .finally(() => {
+          autoSaveInFlightRef.current = false;
+        });
     }, 30000);
     return () => clearInterval(id);
   }, [phase, results]);
@@ -139,8 +156,12 @@ export default function SessionPage() {
   );
 
   const confirmAndPersist = useCallback(async () => {
-    setPhase("complete");
-    if (results.size === 0) return;
+    if (results.size === 0) {
+      setPhase("complete");
+      return;
+    }
+
+    setSaveError(null);
 
     // Apply overrides to results
     const finalResults = Array.from(results.values()).map((entry) => {
@@ -148,11 +169,24 @@ export default function SessionPage() {
       return override ? { ...entry, next_review_at_override: override } : entry;
     });
 
-    await fetch("/api/session/complete", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ results: finalResults }),
-    });
+    try {
+      const response = await fetch("/api/session/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ results: finalResults }),
+      });
+
+      if (response.ok) {
+        setPhase("complete");
+        return;
+      }
+    } catch {
+      // Keep the confirmation screen available for a retry after network errors.
+    }
+
+    {
+      setSaveError("Review progress could not be saved. Please try again.");
+    }
   }, [results, nextReviewOverrides]);
 
   function advanceCard(
@@ -406,6 +440,12 @@ export default function SessionPage() {
           <p className="text-gray-600 mb-6">
             Review the next review dates below. You can adjust individual cards or confirm to save.
           </p>
+
+          {saveError && (
+            <p className="text-red-600 text-sm mb-4" role="alert">
+              {saveError}
+            </p>
+          )}
 
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
             {cardsToConfirm.map((card) => (

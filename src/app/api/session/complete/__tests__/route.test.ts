@@ -15,8 +15,8 @@ import { createClient } from "@/lib/supabase/server";
 
 const mockCreateClient = jest.mocked(createClient);
 
-function makeUpdateMock() {
-  const mockEqUserId = jest.fn().mockResolvedValue({ error: null });
+function makeUpdateMock(updateError: Error | null = null) {
+  const mockEqUserId = jest.fn().mockResolvedValue({ error: updateError });
   const mockEqId = jest.fn().mockReturnValue({ eq: mockEqUserId });
   const mockUpdate = jest.fn().mockReturnValue({ eq: mockEqId });
   return { mockUpdate, mockEqId, mockEqUserId };
@@ -161,5 +161,36 @@ describe("POST /api/session/complete", () => {
     expect(mockUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ interval_days: 1, consecutive_correct: 0 })
     );
+  });
+
+  it("returns 500 when an item update fails", async () => {
+    const { mockUpdate } = makeUpdateMock(new Error("database unavailable"));
+    mockCreateClient.mockResolvedValue({
+      auth: {
+        getUser: jest
+          .fn()
+          .mockResolvedValue({ data: { user: { id: "user-1" } } }),
+      },
+      from: jest.fn().mockReturnValue({ update: mockUpdate }),
+    } as never);
+
+    const req = new Request("http://localhost/api/session/complete", {
+      method: "POST",
+      body: JSON.stringify({
+        results: [
+          {
+            id: "item-1",
+            outcome: "remembered",
+            interval_days: 1,
+            consecutive_correct: 0,
+          },
+        ],
+      }),
+    });
+
+    const res = await POST(req);
+
+    expect(res.status).toBe(500);
+    expect(await res.text()).toBe("database unavailable");
   });
 });

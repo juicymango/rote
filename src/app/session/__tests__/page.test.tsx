@@ -218,6 +218,45 @@ describe("SessionPage", () => {
     });
   });
 
+  it("keeps confirmation screen and allows retry when saving fails", async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [makeCard("1")],
+      } as Response)
+      .mockResolvedValueOnce({ ok: false, text: async () => "database unavailable" } as Response)
+      .mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
+
+    await renderAndStart();
+    await waitFor(() => screen.getByText("Key 1"));
+
+    for (let i = 0; i < 3; i++) {
+      fireEvent.click(screen.getByRole("button", { name: /show answer/i }));
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /remembered/i }));
+      });
+    }
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: /confirm review schedule/i })).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /confirm and save/i }));
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent(/could not be saved/i);
+    expect(screen.queryByText(/session complete/i)).not.toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /confirm and save/i }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/session complete/i)).toBeInTheDocument();
+    });
+  });
+
   it("resets consecutive count on forgot and advances to next card", async () => {
     const cards = [makeCard("1"), makeCard("2")];
     mockFetch.mockResolvedValue({

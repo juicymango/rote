@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   }
 
   const today = new Date();
-  const updates = [];
+  const updates: Promise<void>[] = [];
 
   for (const entry of results) {
     const { id, outcome, interval_days, consecutive_correct, next_review_at_override, is_first_forgot } =
@@ -42,19 +42,28 @@ export async function POST(request: Request) {
     const finalNextReviewAt = next_review_at_override ?? update.next_review_at;
 
     updates.push(
-      supabase
-        .from("items")
-        .update({
-          interval_days: update.interval_days,
-          next_review_at: finalNextReviewAt,
-          consecutive_correct: update.consecutive_correct,
-        })
-        .eq("id", id)
-        .eq("user_id", user.id)
-        .then()
+      Promise.resolve(
+        supabase
+          .from("items")
+          .update({
+            interval_days: update.interval_days,
+            next_review_at: finalNextReviewAt,
+            consecutive_correct: update.consecutive_correct,
+          })
+          .eq("id", id)
+          .eq("user_id", user.id)
+      ).then(({ error }) => {
+        if (error) throw error;
+      })
     );
   }
 
-  await Promise.all(updates);
+  try {
+    await Promise.all(updates);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "database error";
+    return new NextResponse(message, { status: 500 });
+  }
+
   return new NextResponse(null, { status: 200 });
 }

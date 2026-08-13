@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Item, DEFAULT_FETCH_OLD_COUNT, DEFAULT_FETCH_NEW_COUNT } from "@/lib/items/sessionPool";
 import { CardOutcome, computeIntervalUpdate } from "@/lib/items/spacedRepetition";
 import MarkdownValue from "@/components/items/MarkdownValue";
+import { trackEvent } from "@/lib/telemetry/client";
 
 interface ResultEntry {
   id: string;
@@ -91,6 +92,7 @@ export default function SessionPage() {
           setSaveError(null);
         })
         .catch(() => {
+          trackEvent("session_save_failed");
           setSaveError("Review progress could not be saved. It will be retried.");
         })
         .finally(() => {
@@ -121,6 +123,7 @@ export default function SessionPage() {
         setPending(initialPending);
         setAllSessionCards(new Map(data.map((item) => [item.id, item])));
         setCurrentIndex(Math.floor(Math.random() * initialPool.length));
+        trackEvent("session_started");
         setPhase("review");
       } catch {
         setPhase("empty");
@@ -177,6 +180,7 @@ export default function SessionPage() {
       });
 
       if (response.ok) {
+        trackEvent("session_completed");
         setPhase("complete");
         return;
       }
@@ -184,9 +188,8 @@ export default function SessionPage() {
       // Keep the confirmation screen available for a retry after network errors.
     }
 
-    {
-      setSaveError("Review progress could not be saved. Please try again.");
-    }
+    trackEvent("session_save_failed");
+    setSaveError("Review progress could not be saved. Please try again.");
   }, [results, nextReviewOverrides]);
 
   function advanceCard(

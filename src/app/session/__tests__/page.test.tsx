@@ -8,6 +8,10 @@ jest.mock("react-markdown", () => ({
   ),
 }));
 
+jest.mock("@/lib/telemetry/client", () => ({
+  trackEvent: jest.fn(),
+}));
+
 global.fetch = jest.fn();
 const mockFetch = jest.mocked(global.fetch);
 
@@ -27,6 +31,9 @@ function makeCard(id: string, overrides = {}) {
 }
 
 import SessionPage from "../page";
+import { trackEvent } from "@/lib/telemetry/client";
+
+const mockTrackEvent = jest.mocked(trackEvent);
 
 /** Renders SessionPage and clicks "Start Session" to proceed past the setup screen. */
 async function renderAndStart() {
@@ -106,6 +113,7 @@ describe("SessionPage", () => {
         screen.queryByText("Key 2") !== null;
       expect(hasCard).toBe(true);
     });
+    expect(mockTrackEvent).toHaveBeenCalledWith("session_started");
   });
 
   it("shows only Show Answer button initially (no Remembered/Forgot)", async () => {
@@ -216,6 +224,7 @@ describe("SessionPage", () => {
     await waitFor(() => {
       expect(screen.getByText(/session complete/i)).toBeInTheDocument();
     });
+    expect(mockTrackEvent).toHaveBeenCalledWith("session_completed");
   });
 
   it("keeps confirmation screen and allows retry when saving fails", async () => {

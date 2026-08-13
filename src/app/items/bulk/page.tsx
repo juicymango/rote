@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { parseMarkdownToItems, ParsedItem } from "@/lib/items/parseMarkdown";
+import { trackEvent } from "@/lib/telemetry/client";
 
 type Step = "paste" | "review" | "done";
 
@@ -43,6 +44,7 @@ export default function BulkImportPage() {
       const data = await res.json();
       setImportedCount(data.count ?? selectedItems.length);
       setStep("done");
+      trackEvent("bulk_import_completed");
       router.refresh();
     } finally {
       setSubmitting(false);

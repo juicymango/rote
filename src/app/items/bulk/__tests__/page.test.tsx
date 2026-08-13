@@ -7,12 +7,19 @@ jest.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush, refresh: mockRefresh }),
 }));
 
+jest.mock("@/lib/telemetry/client", () => ({
+  trackEvent: jest.fn(),
+}));
+
 global.fetch = jest.fn();
 const mockFetch = jest.mocked(global.fetch);
 
 import BulkImportPage from "../page";
+import { trackEvent } from "@/lib/telemetry/client";
 
 describe("BulkImportPage", () => {
+  const mockTrackEvent = jest.mocked(trackEvent);
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -72,6 +79,7 @@ describe("BulkImportPage", () => {
       }));
       expect(screen.getByText(/import complete/i)).toBeInTheDocument();
       expect(screen.getByText(/2 items? imported/i)).toBeInTheDocument();
+      expect(mockTrackEvent).toHaveBeenCalledWith("bulk_import_completed");
     });
   });
 

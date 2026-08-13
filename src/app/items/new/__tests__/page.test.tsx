@@ -12,12 +12,19 @@ jest.mock("react-markdown", () => ({
   default: ({ children }: { children: string }) => <div data-testid="markdown-preview">{children}</div>,
 }));
 
+jest.mock("@/lib/telemetry/client", () => ({
+  trackEvent: jest.fn(),
+}));
+
 global.fetch = jest.fn();
 const mockFetch = jest.mocked(global.fetch);
 
 import NewItemPage from "../page";
+import { trackEvent } from "@/lib/telemetry/client";
 
 describe("NewItemPage", () => {
+  const mockTrackEvent = jest.mocked(trackEvent);
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -68,6 +75,7 @@ describe("NewItemPage", () => {
         method: "POST",
       }));
       expect(mockPush).toHaveBeenCalledWith("/items");
+      expect(mockTrackEvent).toHaveBeenCalledWith("item_created");
     });
   });
 

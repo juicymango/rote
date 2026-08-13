@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import MarkdownValue from "@/components/items/MarkdownValue";
+import { trackEvent } from "@/lib/telemetry/client";
 
 export default function NewItemPage() {
   const router = useRouter();
@@ -37,6 +38,7 @@ export default function NewItemPage() {
         setError(msg || "Failed to create item.");
         return;
       }
+      trackEvent("item_created");
       router.push("/items");
       router.refresh();
     } finally {

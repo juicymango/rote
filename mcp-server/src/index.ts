@@ -18,6 +18,46 @@ interface Item {
   created_at: string;
 }
 
+export function parseMarkdownItems(
+  markdown: string
+): Array<{ key: string; value: string }> {
+  const items: Array<{ key: string; value: string }> = [];
+  let currentKey: string | null = null;
+  let currentValueLines: string[] = [];
+
+  const flush = () => {
+    if (currentKey === null) return;
+
+    const value = currentValueLines.join("\n").trim();
+    if (!value) {
+      throw new Error(`Markdown heading "${currentKey}" must have content`);
+    }
+
+    items.push({ key: currentKey, value });
+  };
+
+  for (const line of markdown.split(/\r?\n/)) {
+    const heading = line.match(/^#\s+(.+?)\s*$/);
+    const nextKey = heading?.[1].trim();
+
+    if (nextKey) {
+      flush();
+      currentKey = nextKey;
+      currentValueLines = [];
+    } else if (currentKey !== null) {
+      currentValueLines.push(line);
+    }
+  }
+
+  flush();
+
+  if (items.length === 0) {
+    throw new Error(`Markdown must contain at least one # heading with content`);
+  }
+
+  return items;
+}
+
 // ── Factory ──────────────────────────────────────────────────────────────────
 
 export function createServer(roteClient: RoteClient): McpServer {
@@ -51,9 +91,10 @@ export function createServer(roteClient: RoteClient): McpServer {
       markdown: z.string().describe("Markdown with # headings as keys"),
     },
     async (args) => {
+      const items = parseMarkdownItems(args.markdown);
       const data = await roteClient.request("/api/items/bulk", {
         method: "POST",
-        body: JSON.stringify({ markdown: args.markdown }),
+        body: JSON.stringify({ items }),
       });
       return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
     }

@@ -59,16 +59,33 @@ describe("add_item tool", () => {
 });
 
 describe("bulk_import tool", () => {
-  it("POSTs to /api/items/bulk with markdown", async () => {
+  it("converts markdown headings to the API items array", async () => {
     const request = jest.fn().mockResolvedValue({ count: 3 });
     const server = createServer(makeRoteClient(request));
 
-    await callTool(server, "bulk_import", { markdown: "# Q1\nA1" });
+    await callTool(server, "bulk_import", {
+      markdown: "# Q1\nA1\n\n# Q2\nA2",
+    });
 
     expect(request).toHaveBeenCalledWith("/api/items/bulk", {
       method: "POST",
-      body: JSON.stringify({ markdown: "# Q1\nA1" }),
+      body: JSON.stringify({
+        items: [
+          { key: "Q1", value: "A1" },
+          { key: "Q2", value: "A2" },
+        ],
+      }),
     });
+  });
+
+  it("rejects a heading without content before making an API request", async () => {
+    const request = jest.fn();
+    const server = createServer(makeRoteClient(request));
+
+    await expect(
+      callTool(server, "bulk_import", { markdown: "# Q1" })
+    ).rejects.toThrow(`Markdown heading "Q1" must have content`);
+    expect(request).not.toHaveBeenCalled();
   });
 });
 

@@ -14,7 +14,7 @@ Set the following environment variables before starting the server:
 
 | Variable | Description | Example |
 |---|---|---|
-| `ROTE_APP_URL` | Base URL of the deployed Rote app | `https://rote.vercel.app` |
+| `ROTE_APP_URL` | Base URL of the deployed Rote app | `https://rote-dun.vercel.app` |
 | `ROTE_EMAIL` | Rote account email | `alice@example.com` |
 | `ROTE_PASSWORD` | Rote account password | `s3cr3t` |
 
@@ -23,7 +23,7 @@ Set the following environment variables before starting the server:
 | Tool | Description |
 |---|---|
 | `add_item` | Create a flashcard item, or merge its value into an existing item with the same key |
-| `bulk_import` | Import multiple items from a markdown string (`# heading` → key, content → value) |
+| `bulk_import` | Import multiple items from a markdown string (`# heading` → key, content → value); the MCP converts it to the API's `items` array |
 | `list_items` | List all items, with optional `limit` and substring `filter` |
 | `get_item` | Fetch a single item by UUID |
 | `update_item` | Update fields of an existing item (`key`, `value`, `next_review_at`, `interval_days`, `consecutive_correct`) |
@@ -44,7 +44,7 @@ Add to `claude_desktop_config.json`:
       "command": "node",
       "args": ["/path/to/rote/mcp-server/dist/index.js"],
       "env": {
-        "ROTE_APP_URL": "https://rote.vercel.app",
+        "ROTE_APP_URL": "https://rote-dun.vercel.app",
         "ROTE_EMAIL": "alice@example.com",
         "ROTE_PASSWORD": "s3cr3t"
       }
@@ -65,7 +65,7 @@ npm run build
 
 ```bash
 cd mcp-server
-ROTE_APP_URL=https://rote.vercel.app \
+ROTE_APP_URL=https://rote-dun.vercel.app \
 ROTE_EMAIL=alice@example.com \
 ROTE_PASSWORD=s3cr3t \
 node dist/index.js

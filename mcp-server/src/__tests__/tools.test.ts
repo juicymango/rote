@@ -148,6 +148,32 @@ describe("update_item tool", () => {
   });
 });
 
+describe("postpone_item tool", () => {
+  it("POSTs the default three-day postponement", async () => {
+    const request = jest.fn().mockResolvedValue(ITEM);
+    const server = createServer(makeRoteClient(request));
+
+    await callTool(server, "postpone_item", { id: "item-1" });
+
+    expect(request).toHaveBeenCalledWith("/api/items/item-1/postpone", {
+      method: "POST",
+      body: JSON.stringify({ days: 3 }),
+    });
+  });
+
+  it("passes a selected postponement period", async () => {
+    const request = jest.fn().mockResolvedValue(ITEM);
+    const server = createServer(makeRoteClient(request));
+
+    await callTool(server, "postpone_item", { id: "item-1", days: 7 });
+
+    expect(request).toHaveBeenCalledWith("/api/items/item-1/postpone", {
+      method: "POST",
+      body: JSON.stringify({ days: 7 }),
+    });
+  });
+});
+
 describe("delete_item tool", () => {
   it("DELETEs /api/items/:id", async () => {
     const request = jest.fn().mockResolvedValue(null);

@@ -67,6 +67,7 @@ export function createServer(roteClient: RoteClient): McpServer {
   });
 
   // ── add_item ────────────────────────────────────────────────────────────────
+  // @ts-expect-error The MCP SDK's Zod compatibility types exceed TypeScript's instantiation depth here.
   server.tool(
     "add_item",
     "Create a new flashcard item or merge its value into an existing item with the same key.",
@@ -101,6 +102,7 @@ export function createServer(roteClient: RoteClient): McpServer {
   );
 
   // ── list_items ──────────────────────────────────────────────────────────────
+  // @ts-expect-error The MCP SDK's Zod compatibility types exceed TypeScript's instantiation depth here.
   server.tool(
     "list_items",
     "List all flashcard items, optionally limited or filtered by key/value substring.",
@@ -179,6 +181,29 @@ export function createServer(roteClient: RoteClient): McpServer {
       const data = await roteClient.request(`/api/items/${id}`, {
         method: "PUT",
         body: JSON.stringify(fields),
+      });
+      return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+    }
+  );
+
+  // ── postpone_item ──────────────────────────────────────────────────────────
+  server.tool(
+    "postpone_item",
+    "Postpone a flashcard by a number of days. New cards move to the old-card pool; existing old cards keep their learning history.",
+    {
+      id: z.string().describe("The item UUID"),
+      days: z
+        .number()
+        .int()
+        .min(1)
+        .max(365)
+        .optional()
+        .describe("Days to postpone (default 3)"),
+    },
+    async (args) => {
+      const data = await roteClient.request(`/api/items/${args.id}/postpone`, {
+        method: "POST",
+        body: JSON.stringify({ days: args.days ?? 3 }),
       });
       return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
     }

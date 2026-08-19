@@ -27,6 +27,7 @@ Set the following environment variables before starting the server:
 | `list_items` | List all items, with optional `limit` and substring `filter` |
 | `get_item` | Fetch a single item by UUID |
 | `update_item` | Update fields of an existing item (`key`, `value`, `next_review_at`, `interval_days`, `consecutive_correct`) |
+| `postpone_item` | Postpone an item by 1–365 days (default 3); new cards move to the old-card pool |
 | `delete_item` | Delete an item by UUID |
 | `get_due_items` | Get a shuffled session pool of due and new items for review (`old` and `new` count params) |
 | `get_stats` | Compute summary statistics: total items, items due today, average interval |

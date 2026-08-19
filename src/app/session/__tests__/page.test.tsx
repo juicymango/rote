@@ -154,6 +154,99 @@ describe("SessionPage", () => {
     expect(screen.queryByRole("button", { name: /show answer/i })).not.toBeInTheDocument();
   });
 
+  it("defaults postponement to three days and promotes a new card", async () => {
+    const card = makeCard("1");
+    const updatedCard = {
+      ...card,
+      next_review_at: "2026-08-22",
+      consecutive_correct: 1,
+    };
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [card],
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => updatedCard,
+      } as Response);
+
+    await renderAndStart();
+    await waitFor(() => screen.getByText("Key 1"));
+
+    expect(screen.getByRole("combobox", { name: /postpone days/i })).toHaveValue("3");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Postpone" }));
+    });
+
+    expect(mockFetch).toHaveBeenNthCalledWith(2, "/api/items/1/postpone", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ days: 3 }),
+    });
+    expect(screen.getByRole("button", { name: /show answer/i })).toBeInTheDocument();
+  });
+
+  it("sends a selected postponement period for an old card", async () => {
+    const card = makeCard("1", {
+      interval_days: 8,
+      consecutive_correct: 3,
+    });
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [card],
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ ...card, next_review_at: "2026-08-26" }),
+      } as Response);
+
+    await renderAndStart();
+    await waitFor(() => screen.getByText("Key 1"));
+    fireEvent.change(screen.getByRole("combobox", { name: /postpone days/i }), {
+      target: { value: "7" },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Postpone" }));
+    });
+
+    expect(mockFetch).toHaveBeenNthCalledWith(2, "/api/items/1/postpone", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ days: 7 }),
+    });
+  });
+
+  it("does not let postponement be overwritten by an earlier review outcome", async () => {
+    const card = makeCard("1", { consecutive_correct: 3 });
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [card],
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ ...card, next_review_at: "2026-08-26" }),
+      } as Response);
+
+    await renderAndStart();
+    await waitFor(() => screen.getByText("Key 1"));
+    fireEvent.click(screen.getByRole("button", { name: /show answer/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /forgot/i }));
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Postpone" }));
+    });
+    fireEvent.click(screen.getByRole("button", { name: /end session/i }));
+
+    expect(screen.getByText(/session complete/i)).toBeInTheDocument();
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
   it("Forgot button advances to next card immediately", async () => {
     const cards = [makeCard("1"), makeCard("2")];
     mockFetch.mockResolvedValue({

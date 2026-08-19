@@ -4,6 +4,10 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { Item, DEFAULT_FETCH_OLD_COUNT, DEFAULT_FETCH_NEW_COUNT } from "@/lib/items/sessionPool";
 import { CardOutcome, computeIntervalUpdate } from "@/lib/items/spacedRepetition";
+import {
+  DEFAULT_POSTPONE_DAYS,
+  POSTPONE_OPTIONS,
+} from "@/lib/items/postpone";
 import MarkdownValue from "@/components/items/MarkdownValue";
 import { trackEvent } from "@/lib/telemetry/client";
 
@@ -48,6 +52,9 @@ export default function SessionPage() {
   const [editing, setEditing] = useState(false);
   const [editedValue, setEditedValue] = useState("");
   const [saving, setSaving] = useState(false);
+  const [postponeDays, setPostponeDays] = useState(DEFAULT_POSTPONE_DAYS);
+  const [postponing, setPostponing] = useState(false);
+  const [postponeError, setPostponeError] = useState<string | null>(null);
   // consecutive correct count within this session per card id
   const [sessionCorrect, setSessionCorrect] = useState<Map<string, number>>(new Map());
   // tracks how many times each card has been forgotten in this session
@@ -250,6 +257,43 @@ export default function SessionPage() {
       setEditing(false);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handlePostpone() {
+    if (pool.length === 0 || postponing) return;
+    const card = pool[currentIndex];
+    setPostponing(true);
+    setPostponeError(null);
+
+    try {
+      const res = await fetch(`/api/items/${card.id}/postpone`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ days: postponeDays }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to postpone card");
+      }
+
+      const updatedCard = (await res.json()) as Item;
+      const newPool = [...pool];
+      newPool[currentIndex] = { ...card, ...updatedCard };
+      const newAllSessionCards = new Map(allSessionCards);
+      newAllSessionCards.set(card.id, newPool[currentIndex]);
+      setAllSessionCards(newAllSessionCards);
+
+      // A postpone is not a review outcome. Remove an earlier outcome for this
+      // card so session completion cannot overwrite the persisted postpone date.
+      const newResults = new Map(results);
+      newResults.delete(card.id);
+      setResults(newResults);
+      advanceCard(newPool, [...pending], newResults, card.id, false);
+    } catch {
+      setPostponeError("Card could not be postponed. Please try again.");
+    } finally {
+      setPostponing(false);
     }
   }
 
@@ -688,6 +732,41 @@ export default function SessionPage() {
                 )}
               </div>
             </>
+          )}
+        </div>
+
+        <div className="mb-4 rounded-md border border-gray-200 bg-white p-3">
+          <div className="flex items-center gap-2">
+            <label htmlFor="postpone-days" className="text-sm text-gray-600">
+              Postpone for
+            </label>
+            <select
+              id="postpone-days"
+              aria-label="Postpone days"
+              value={postponeDays}
+              onChange={(event) => setPostponeDays(Number(event.target.value))}
+              disabled={postponing || saving || editing}
+              className="rounded-md border border-gray-300 px-2 py-2 text-sm text-gray-700 disabled:opacity-50"
+            >
+              {POSTPONE_OPTIONS.map((days) => (
+                <option key={days} value={days}>
+                  {days} day{days === 1 ? "" : "s"}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={handlePostpone}
+              disabled={postponing || saving || editing}
+              className="flex-1 rounded-md border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {postponing ? "Postponing..." : "Postpone"}
+            </button>
+          </div>
+          {postponeError && (
+            <p role="alert" className="mt-2 text-sm text-red-600">
+              {postponeError}
+            </p>
           )}
         </div>
 

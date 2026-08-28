@@ -9,6 +9,8 @@ import {
   POSTPONE_OPTIONS,
 } from "@/lib/items/postpone";
 import MarkdownValue from "@/components/items/MarkdownValue";
+import SpeechButton from "@/components/ui/SpeechButton";
+import { extractSpeechText } from "@/lib/speech/speechText";
 import { trackEvent } from "@/lib/telemetry/client";
 
 interface ResultEntry {
@@ -562,6 +564,7 @@ export default function SessionPage() {
 
   const card = pool[currentIndex];
   if (!card) return null;
+  const speechText = extractSpeechText(card.key, card.value);
 
   // Calculate status panel data
   const rememberedCount = Array.from(results.values()).filter(
@@ -671,7 +674,10 @@ export default function SessionPage() {
 
         {/* Card */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 mb-6">
-          <p className="text-xl font-semibold text-gray-900 mb-4">{card.key}</p>
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <p className="min-w-0 flex-1 text-xl font-semibold text-gray-900">{card.key}</p>
+            <SpeechButton text={speechText} />
+          </div>
           {answerRevealed && (
             <>
               {/* Action buttons above the value */}

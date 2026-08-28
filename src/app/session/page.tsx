@@ -64,7 +64,7 @@ export default function SessionPage() {
   // final outcome per card for persisting at session end
   const [results, setResults] = useState<Map<string, ResultEntry>>(new Map());
   // today's reviewed list (fetched once on session start)
-  const [reviewedToday, setReviewedToday] = useState<ReviewedToday[]>([]);
+  const [reviewedToday] = useState<ReviewedToday[]>([]);
   // status panel visibility
   const [showStatus, setShowStatus] = useState(false);
   // confirmation screen: map of card id to next_review_at override

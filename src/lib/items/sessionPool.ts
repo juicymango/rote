@@ -23,6 +23,8 @@ export function buildSessionPool(
   maxOld: number = DEFAULT_OLD_COUNT,
   maxNew: number = DEFAULT_NEW_COUNT
 ): Item[] {
+  // Keep the date argument for callers; upcoming old cards are intentionally included.
+  void today;
   const isOld = (i: Item) => i.consecutive_correct > 0;
   const isNew = (i: Item) => i.consecutive_correct === 0;
 

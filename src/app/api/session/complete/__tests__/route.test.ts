@@ -98,7 +98,7 @@ describe("POST /api/session/complete", () => {
   });
 
   it("applies soft penalty (halved interval) when is_first_forgot=true for old card", async () => {
-    const { mockUpdate, mockEqId, mockEqUserId } = makeUpdateMock();
+    const { mockUpdate } = makeUpdateMock();
     mockCreateClient.mockResolvedValue({
       auth: {
         getUser: jest

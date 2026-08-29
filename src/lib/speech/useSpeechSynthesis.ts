@@ -18,25 +18,28 @@ function getSpeechEnvironment(): SpeechEnvironment | null {
   return { synthesis, Utterance };
 }
 
-interface UseSpeechSynthesisResult {
+export interface SpeechSynthesisController {
   supported: boolean;
   hasJapaneseVoice: boolean | null;
+  activeSpeechId: string | null;
   isSpeaking: boolean;
   error: string | null;
-  speak: (text: string) => void;
+  speak: (speechId: string, text: string) => void;
   stop: () => void;
 }
 
-export default function useSpeechSynthesis(): UseSpeechSynthesisResult {
+export default function useSpeechSynthesis(): SpeechSynthesisController {
   const supported = useSyncExternalStore(
     () => () => undefined,
     () => getSpeechEnvironment() !== null,
     () => false
   );
   const [hasJapaneseVoice, setHasJapaneseVoice] = useState<boolean | null>(null);
-  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [activeSpeechId, setActiveSpeechId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const activeUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const activeUtteranceRef = useRef<{
+    utterance: SpeechSynthesisUtterance;
+  } | null>(null);
 
   useEffect(() => {
     const environment = getSpeechEnvironment();
@@ -65,22 +68,22 @@ export default function useSpeechSynthesis(): UseSpeechSynthesisResult {
   const stop = useCallback(() => {
     activeUtteranceRef.current = null;
     getSpeechEnvironment()?.synthesis.cancel();
-    setIsSpeaking(false);
+    setActiveSpeechId(null);
     setError(null);
   }, []);
 
-  const speak = useCallback((text: string) => {
+  const speak = useCallback((speechId: string, text: string) => {
     const environment = getSpeechEnvironment();
     const speechText = text.trim();
 
     if (!environment) {
       setError("Speech is not available in this browser.");
-      setIsSpeaking(false);
+      setActiveSpeechId(null);
       return;
     }
     if (!speechText) {
       setError("There is no text to read.");
-      setIsSpeaking(false);
+      setActiveSpeechId(null);
       return;
     }
 
@@ -101,25 +104,27 @@ export default function useSpeechSynthesis(): UseSpeechSynthesisResult {
       if (voice) utterance.voice = voice;
     } catch {
       setError("Japanese pronunciation could not be started.");
-      setIsSpeaking(false);
+      setActiveSpeechId(null);
       return;
     }
 
     const finish = () => {
-      if (activeUtteranceRef.current !== utterance) return;
+      if (activeUtteranceRef.current?.utterance !== utterance) return;
       activeUtteranceRef.current = null;
-      setIsSpeaking(false);
+      setActiveSpeechId(null);
     };
 
     utterance.onstart = () => {
-      if (activeUtteranceRef.current === utterance) setIsSpeaking(true);
+      if (activeUtteranceRef.current?.utterance === utterance) {
+        setActiveSpeechId(speechId);
+      }
     };
     utterance.onend = finish;
     utterance.onerror = finish;
 
-    activeUtteranceRef.current = utterance;
+    activeUtteranceRef.current = { utterance };
     setError(null);
-    setIsSpeaking(true);
+    setActiveSpeechId(speechId);
 
     try {
       environment.synthesis.speak(utterance);
@@ -129,5 +134,13 @@ export default function useSpeechSynthesis(): UseSpeechSynthesisResult {
     }
   }, []);
 
-  return { supported, hasJapaneseVoice, isSpeaking, error, speak, stop };
+  return {
+    supported,
+    hasJapaneseVoice,
+    activeSpeechId,
+    isSpeaking: activeSpeechId !== null,
+    error,
+    speak,
+    stop,
+  };
 }

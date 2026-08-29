@@ -10,7 +10,11 @@ import {
 } from "@/lib/items/postpone";
 import MarkdownValue from "@/components/items/MarkdownValue";
 import SpeechButton from "@/components/ui/SpeechButton";
-import { extractSpeechText } from "@/lib/speech/speechText";
+import useSpeechSynthesis from "@/lib/speech/useSpeechSynthesis";
+import {
+  extractKeySpeechText,
+  extractValueSpeechText,
+} from "@/lib/speech/speechText";
 import { trackEvent } from "@/lib/telemetry/client";
 
 interface ResultEntry {
@@ -76,6 +80,8 @@ export default function SessionPage() {
   const lastSavedResultsRef = useRef<string>("");
   const autoSaveInFlightRef = useRef(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const speech = useSpeechSynthesis();
+  const stopSpeech = speech.stop;
 
   // Auto-save: periodically persist results to prevent data loss on browser close
   useEffect(() => {
@@ -143,6 +149,7 @@ export default function SessionPage() {
 
   const finishSession = useCallback(
     (finalResults: Map<string, ResultEntry>) => {
+      stopSpeech();
       if (finalResults.size === 0) {
         setPhase("complete");
         return;
@@ -164,7 +171,7 @@ export default function SessionPage() {
       setNextReviewOverrides(initialOverrides);
       setPhase("confirm");
     },
-    []
+    [stopSpeech]
   );
 
   const confirmAndPersist = useCallback(async () => {
@@ -214,6 +221,7 @@ export default function SessionPage() {
       finishSession(newResults);
       return;
     }
+    stopSpeech();
     const nextIndex = pickNext(newPool, graduated ? null : cardId);
     setPool(newPool);
     setPending(newPending);
@@ -253,6 +261,7 @@ export default function SessionPage() {
         return;
       }
       // Update the local pool with the new value
+      stopSpeech();
       const newPool = [...pool];
       newPool[currentIndex] = { ...card, value: editedValue };
       setPool(newPool);
@@ -564,7 +573,8 @@ export default function SessionPage() {
 
   const card = pool[currentIndex];
   if (!card) return null;
-  const speechText = extractSpeechText(card.key, card.value);
+  const keySpeechText = extractKeySpeechText(card.key);
+  const valueSpeechText = extractValueSpeechText(card.value);
 
   // Calculate status panel data
   const rememberedCount = Array.from(results.values()).filter(
@@ -676,7 +686,12 @@ export default function SessionPage() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 mb-6">
           <div className="mb-4 flex items-start justify-between gap-3">
             <p className="min-w-0 flex-1 text-xl font-semibold text-gray-900">{card.key}</p>
-            <SpeechButton text={speechText} />
+            <SpeechButton
+              speechId={`key:${card.id}`}
+              label="Read key"
+              text={keySpeechText}
+              controller={speech}
+            />
           </div>
           {answerRevealed && (
             <>
@@ -725,8 +740,16 @@ export default function SessionPage() {
                   </div>
                 ) : (
                   <>
-                    <div className="prose prose-sm max-w-none text-left mb-3">
-                      <MarkdownValue>{card.value}</MarkdownValue>
+                    <div className="mb-3 flex items-start justify-between gap-3">
+                      <div className="prose prose-sm max-w-none flex-1 text-left">
+                        <MarkdownValue>{card.value}</MarkdownValue>
+                      </div>
+                      <SpeechButton
+                        speechId={`value:${card.id}`}
+                        label="Read value"
+                        text={valueSpeechText}
+                        controller={speech}
+                      />
                     </div>
                     <button
                       onClick={handleEdit}

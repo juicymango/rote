@@ -132,6 +132,8 @@ describe("SessionPage", () => {
     expect(screen.queryByRole("button", { name: /forgot/i })).not.toBeInTheDocument();
     // Value should NOT be visible yet
     expect(screen.queryByTestId("markdown")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /read key/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /read value/i })).not.toBeInTheDocument();
   });
 
   it("Show Answer reveals value and Remembered/Forgot buttons", async () => {
@@ -150,6 +152,7 @@ describe("SessionPage", () => {
     // Remembered and Forgot buttons appear
     expect(screen.getByRole("button", { name: /remembered/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /forgot/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /read value/i })).toBeInTheDocument();
     // Show Answer button is gone
     expect(screen.queryByRole("button", { name: /show answer/i })).not.toBeInTheDocument();
   });

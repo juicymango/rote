@@ -684,13 +684,14 @@ export default function SessionPage() {
 
         {/* Card */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 mb-6">
-          <div className="mb-4 flex items-start justify-between gap-3">
+          <div className="mb-4 flex items-start gap-2">
             <p className="min-w-0 flex-1 text-xl font-semibold text-gray-900">{card.key}</p>
             <SpeechButton
               speechId={`key:${card.id}`}
               label="Read key"
               text={keySpeechText}
               controller={speech}
+              compact
             />
           </div>
           {answerRevealed && (
@@ -740,16 +741,18 @@ export default function SessionPage() {
                   </div>
                 ) : (
                   <>
-                    <div className="mb-3 flex items-start justify-between gap-3">
-                      <div className="prose prose-sm max-w-none flex-1 text-left">
-                        <MarkdownValue>{card.value}</MarkdownValue>
-                      </div>
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="text-sm font-medium text-gray-600">Value</span>
                       <SpeechButton
                         speechId={`value:${card.id}`}
                         label="Read value"
                         text={valueSpeechText}
                         controller={speech}
+                        compact
                       />
+                    </div>
+                    <div className="prose prose-sm max-w-none text-left">
+                      <MarkdownValue>{card.value}</MarkdownValue>
                     </div>
                     <button
                       onClick={handleEdit}

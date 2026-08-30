@@ -85,4 +85,22 @@ describe("SpeechButton", () => {
       /not available in this browser/i
     );
   });
+
+  it("renders a compact icon button with an accessible label", () => {
+    const controller = makeController();
+    render(
+      <SpeechButton
+        compact
+        speechId="key:1"
+        label="Read key"
+        text="相互"
+        controller={controller}
+      />
+    );
+
+    const button = screen.getByRole("button", { name: "Read key" });
+    expect(button).toHaveClass("min-w-11");
+    expect(button).toHaveAttribute("title", "Read key");
+    expect(screen.getByText("Read key")).toHaveClass("sr-only");
+  });
 });

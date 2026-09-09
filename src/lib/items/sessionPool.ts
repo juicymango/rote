@@ -15,7 +15,7 @@ export const DEFAULT_FETCH_NEW_COUNT = 100;
 
 /** Returns up to maxOld old + maxNew new cards, combined and shuffled.
  * Old cards: consecutive_correct > 0, sorted by next_review_at ASC (includes upcoming).
- * New cards: consecutive_correct === 0, sorted by created_at ASC.
+ * New cards: consecutive_correct === 0, sorted by created_at DESC.
  */
 export function buildSessionPool(
   allItems: Item[],
@@ -35,7 +35,7 @@ export function buildSessionPool(
 
   const newCards = allItems
     .filter(isNew)
-    .sort((a, b) => a.created_at.localeCompare(b.created_at))
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))
     .slice(0, maxNew);
 
   return shuffle([...oldCards, ...newCards]);
